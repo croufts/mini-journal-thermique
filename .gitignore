@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+out/
+dist/
+.env
+firmware/.pio/
+firmware/include/journal_config.h
+*.log

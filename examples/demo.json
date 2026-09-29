@@ -1,0 +1,13 @@
+{
+  "france": [
+    {"id": "demo-f1", "title": "Les services publics au cœur du débat", "summary": "Exemple fictif : un débat national examine l’accès aux services publics et les besoins des territoires. Les propositions seront discutées dans les prochaines semaines."},
+    {"id": "demo-f2", "title": "Un programme pour rénover les écoles", "summary": "Exemple fictif : plusieurs communes présentent des travaux visant à améliorer le confort des élèves et à réduire la consommation d’énergie."}
+  ],
+  "world": [
+    {"id": "demo-w1", "title": "Des négociations internationales reprennent", "summary": "Exemple fictif : des délégations se réunissent pour chercher un accord. Les discussions portent sur les garanties et le calendrier de mise en œuvre."},
+    {"id": "demo-w2", "title": "Un accord sur la protection des océans", "summary": "Exemple fictif : plusieurs pays annoncent une coopération pour préserver les milieux marins et renforcer les observations scientifiques."}
+  ],
+  "tech": [
+    {"id": "demo-t1", "title": "Des outils numériques plus accessibles", "summary": "Exemple fictif : un projet ouvert propose de simplifier l’usage des services numériques. Les premiers essais doivent évaluer leur accessibilité et leur consommation d’énergie."}
+  ]
+}

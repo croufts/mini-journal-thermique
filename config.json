@@ -1,0 +1,18 @@
+{
+  "timezone": "Europe/Paris",
+  "max_age_hours": 36,
+  "max_candidates_per_section": 9,
+  "openrouter_model": "openrouter/free",
+  "groq_model": "openai/gpt-oss-20b",
+  "allow_rss_fallback": true,
+  "printer": {"width": 626, "height": 2362, "threshold": 180, "feed_lines": 2, "prefix": false, "legacy_lf_workaround": false},
+  "feeds": [
+    {"section": "france", "url": "https://www.lemonde.fr/politique/rss_full.xml"},
+    {"section": "france", "url": "https://www.lemonde.fr/societe/rss_full.xml"},
+    {"section": "france", "url": "https://www.franceinfo.fr/france.rss"},
+    {"section": "world", "url": "https://www.lemonde.fr/international/rss_full.xml"},
+    {"section": "world", "url": "https://www.franceinfo.fr/monde.rss"},
+    {"section": "tech", "url": "https://www.lemonde.fr/pixels/rss_full.xml"},
+    {"section": "tech", "url": "https://www.numerama.com/feed/"}
+  ]
+}
