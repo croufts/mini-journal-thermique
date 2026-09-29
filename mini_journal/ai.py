@@ -80,6 +80,22 @@ def shorten(value, maximum):
     return (prefix.rsplit(" ", 1)[0] if " " in prefix else prefix) + "…"
 
 
+def response_schema(candidates):
+    properties = {}
+    for section in SECTIONS:
+        properties[section] = {
+            "type": "array", "minItems": 1, "maxItems": 1 if section == "tech" else 3,
+            "items": {"type": "object", "additionalProperties": False,
+                      "required": ["id", "title", "summary"],
+                      "properties": {
+                          "id": {"type": "string", "enum": [c["id"] for c in candidates if c["section"] == section]},
+                          "title": {"type": "string", "minLength": 1, "maxLength": 65},
+                          "summary": {"type": "string", "minLength": 1, "maxLength": 240}}}}
+    return {"type": "json_schema", "json_schema": {"name": "mini_journal", "strict": True,
+            "schema": {"type": "object", "additionalProperties": False,
+                       "required": list(SECTIONS), "properties": properties}}}
+
+
 def select(candidates, config):
     providers = [
         ("OpenRouter", "https://openrouter.ai/api/v1/chat/completions", "OPENROUTER_API_KEY", config["openrouter_model"]),
@@ -95,18 +111,32 @@ def select(candidates, config):
             continue
         for attempt in range(2):
             try:
+                payload = {"model": model, "temperature": .2, "max_tokens": 6000,
+                           "messages": [{"role": "system", "content": SYSTEM},
+                                        {"role": "user", "content": json.dumps(candidates, ensure_ascii=False)}],
+                           "response_format": {"type": "json_object"}}
+                if name == "OpenRouter":
+                    payload.update(response_format=response_schema(candidates),
+                                   provider={"require_parameters": True},
+                                   reasoning={"enabled": False})
                 response = requests.post(url, timeout=(10, 90),
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                    json={"model": model, "temperature": .2, "max_tokens": 2200,
-                          "messages": [{"role": "system", "content": SYSTEM},
-                                       {"role": "user", "content": json.dumps(candidates, ensure_ascii=False)}]})
+                    json=payload)
                 response.raise_for_status()
-                articles = validate(parse_json(response.json()["choices"][0]["message"]["content"]), candidates)
+                choice = response.json()["choices"][0]
+                if choice.get("finish_reason") == "length":
+                    raise ValueError("Réponse tronquée")
+                articles = validate(parse_json(choice["message"]["content"]), candidates)
                 LOG.info("Sélection validée via %s", name)
                 return articles, name
             except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
                 # Never log response bodies or headers: they can echo credentials or untrusted text.
                 LOG.warning("%s tentative %d échouée (%s)", name, attempt + 1, type(exc).__name__)
+                if isinstance(exc, requests.HTTPError) and exc.response is not None:
+                    LOG.warning("Statut HTTP : %d", exc.response.status_code)
+                elif isinstance(exc, ValueError) and not isinstance(exc, json.JSONDecodeError):
+                    # Only our fixed validation messages; never echo provider content.
+                    LOG.warning("Validation : %s", str(exc))
                 if attempt == 0:
                     time.sleep(3)
     if config.get("allow_rss_fallback", False):
