@@ -21,7 +21,7 @@ def main():
         print("true")
         return
     run = os.environ.get("GITHUB_RUN_ID", "0")
-    response = requests.get(f"https://raw.githubusercontent.com/{repo}/journal/manifest.json?run={run}", timeout=30)
+    response = requests.get(f"https://raw.githubusercontent.com/{repo}/refs/heads/journal/manifest.json?run={run}", timeout=30)
     if response.status_code == 404:
         print("true")
         return
