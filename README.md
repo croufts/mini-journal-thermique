@@ -8,7 +8,15 @@ Le ticket commence par **« Bonjour Mathias. »**, puis la date et les sections 
 
 Le dépôt contient le générateur Python, les tests, les workflows GitHub, le firmware et les polices. Un exemple fictif figure dans `examples/preview.png`.
 
-Il reste à créer le dépôt GitHub public, renseigner la clé OpenRouter, configurer le Wi-Fi et l’adresse Bluetooth de l’imprimante, puis téléverser l’ESP32. La compilation et les tests logiciels peuvent être vérifiés sans matériel ; l’impression physique et la compatibilité SPP de **ton exemplaire** doivent être testées sur place.
+L’installation GitHub de Mathias est disponible sur [croufts/mini-journal-thermique](https://github.com/croufts/mini-journal-thermique). Les workflows de génération quotidienne et de vérification sont actifs. Une première édition de secours RSS a été générée et publiée le 29 septembre 2026.
+
+L’adresse publique à utiliser pour cet ESP32 est :
+
+```text
+https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/
+```
+
+Elle est déjà renseignée dans `config.example.h`. Pour activer la sélection IA, renseigner le secret OpenRouter décrit ci-dessous. Il reste également à configurer le Wi-Fi et l’adresse Bluetooth de l’imprimante, puis téléverser l’ESP32. L’impression physique et la compatibilité SPP de **ton exemplaire** doivent être testées sur place.
 
 ## Fonctionnement
 
@@ -117,7 +125,7 @@ Dans **Actions**, activer les workflows si demandé, puis ouvrir **Journal quoti
 À la fin d’un premier run réussi, la branche **journal** contient le manifeste, le binaire, le texte et l’aperçu. Vérifier dans un navigateur :
 
 ```text
-https://raw.githubusercontent.com/TON_COMPTE/mini-journal-thermique/journal/manifest.json
+https://raw.githubusercontent.com/TON_COMPTE/mini-journal-thermique/refs/heads/journal/manifest.json
 ```
 
 L’URL doit répondre sans connexion à GitHub. La date doit être celle du jour à Paris et `demo` doit valoir `false`.

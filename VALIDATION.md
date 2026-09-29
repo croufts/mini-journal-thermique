@@ -10,6 +10,14 @@
 
 Les appels réels à OpenRouter/Groq n’ont pas été effectués : aucune clé API n’était configurée dans la session. La logique de réponse et de secours a été vérifiée avec des réponses simulées.
 
-Le dépôt n’a pas été publié sur un compte GitHub, et les workflows n’ont pas été exécutés sur GitHub. Le téléversement physique de l’ESP32, l’appairage SPP, les interruptions d’alimentation et l’impression sur la M02 Pro restent à vérifier selon la procédure du README.
+Le dépôt a ensuite été publié sur [croufts/mini-journal-thermique](https://github.com/croufts/mini-journal-thermique).
+
+- [Installation sur GitHub réussie](https://github.com/croufts/mini-journal-thermique/actions/runs/36543799242).
+- [Tests Python, génération fictive et compilation ESP32/LittleFS réussis sur le runner Linux GitHub](https://github.com/croufts/mini-journal-thermique/actions/runs/36543925548).
+- [Première génération réelle et publication automatique réussies](https://github.com/croufts/mini-journal-thermique/actions/runs/36543990015), avec le secours RSS en attendant la clé IA.
+- Le manifeste et le binaire publics ont été téléchargés sans authentification : date du 29 septembre 2026, 186 686 octets, SHA-256 valide, relecture en 626 × 2362 pixels et exactement une info Tech.
+- Le chemin explicite `refs/heads/journal` est utilisé pour éviter un cache 404 observé juste après la création de la branche sur le chemin abrégé.
+
+Le téléversement physique de l’ESP32, l’appairage SPP, les interruptions d’alimentation et l’impression sur la M02 Pro restent à vérifier selon la procédure du README.
 
 La compilation ne garantit pas la prise en charge de Bluetooth Classic par toutes les révisions de M02 Pro. La longueur papier réelle, le bourrage à 632 positions et le débit Bluetooth doivent être confirmés lors du premier essai matériel.
