@@ -1,0 +1,42 @@
+name: Initialisation du projet
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer les fichiers du projet
+        run: |
+          python - <<'PY'
+          import os, pathlib, zipfile
+          root = pathlib.Path.cwd().resolve()
+          archive = root / 'mini-journal-thermique.zip'
+          with zipfile.ZipFile(archive) as bundle:
+              for entry in bundle.infolist():
+                  parts = pathlib.PurePosixPath(entry.filename).parts
+                  if not parts or parts[0] != 'mini-journal-thermique':
+                      raise ValueError('Archive inattendue')
+                  relative = pathlib.PurePosixPath(*parts[1:])
+                  if relative.parts[:1] == ('.github',) or entry.is_dir():
+                      continue
+                  target = root.joinpath(*relative.parts).resolve()
+                  if root not in target.parents:
+                      raise ValueError('Chemin hors du projet')
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(bundle.read(entry))
+          config = root / 'firmware/include/config.example.h'
+          config.write_text(config.read_text().replace('TON_COMPTE/mini-journal-thermique', os.environ['GITHUB_REPOSITORY']))
+          archive.unlink()
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'Installer le générateur, le firmware et la documentation'
+          git push origin HEAD:main
