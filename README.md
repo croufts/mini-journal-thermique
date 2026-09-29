@@ -16,7 +16,7 @@ L’adresse publique à utiliser pour cet ESP32 est :
 https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/
 ```
 
-Elle est déjà renseignée dans `config.example.h`. La partie Internet est opérationnelle sur ce compte. Il reste à configurer le Wi-Fi et l’adresse Bluetooth de l’imprimante, puis téléverser l’ESP32. L’impression physique et la compatibilité SPP de **ton exemplaire** doivent être testées sur place.
+Elle est déjà renseignée dans `config.example.h`. La partie Internet est opérationnelle sur ce compte. L’ESP32 WROOM-32D de Mathias a été configuré et programmé : téléchargement vérifié, impression complète et lisible sur sa M02 Pro, puis garde anti-doublon conservée après redémarrage. La configuration matérielle reste locale et privée. Il reste à alimenter l’ESP32 sur un chargeur USB et à observer le prochain matin avec le PC éteint. Les étapes ci-dessous permettent de reproduire l’installation.
 
 ## Fonctionnement
 
@@ -37,7 +37,7 @@ ESP32 alimenté en permanence
   → dès la connexion : envoi du journal, garde anti-doublon en mémoire permanente
 ```
 
-L’allumage de l’imprimante entraîne une impression après sa détection, habituellement dans la minute, en tenant compte de la durée de connexion. L’envoi prend environ 40 secondes avec les réglages prudents par défaut.
+L’allumage de l’imprimante entraîne une impression après sa détection, habituellement dans la minute, en tenant compte de la durée de connexion. L’envoi prend environ deux minutes avec les réglages prudents par défaut : blocs de 64 octets et pause de 40 ms. Ce débit a permis une transmission complète sur la M02 Pro de Mathias ; le premier essai à 128 octets / 25 ms avait produit des lignes déformées et un envoi incertain.
 
 ## Gratuité
 
@@ -199,6 +199,7 @@ Les confirmations SPP concernent le transport des octets ; elles **ne prouvent p
 |---|---|
 | `STATUS` | Affiche date, cache, Wi-Fi, date transmise et envoi incertain |
 | `FETCH` | Demande une vérification Internet immédiate |
+| `NET` | Diagnostic du signal Wi-Fi, de la mémoire, du DNS et de l’accès TCP 443 |
 | `SCAN` | Recherche les appareils Bluetooth Classic pendant 10 secondes |
 | `RETRY` | Retire le blocage incertain ; vérifier d’abord le papier partiellement imprimé |
 | `REPRINT` | Retire également le verrou de transmission et réimprime le cache du jour |
@@ -235,6 +236,8 @@ Les logs GitHub indiquent les flux disponibles, le nombre de candidats, le fourn
 | OpenRouter indisponible | Quota, clé, politiques de modèles gratuits ; secours Groq ou RSS dans les logs |
 
 HTTPS vérifie le certificat et le nom du serveur. `firmware/include/tls_roots.h` inclut ISRG Root X1, DigiCert Global Root G2 et Sectigo R46 pour les chaînes GitHub. Si les certificats changent, mettre à jour `certifi`, exécuter `python -m scripts.update_tls_roots`, vérifier les racines nécessaires et téléverser le firmware ; ne pas désactiver la validation TLS.
+
+Le firmware met le Bluetooth Classic en pause pendant chaque récupération HTTPS, puis le réactive. Cette séparation a permis le téléchargement vérifié sur l’ESP32 WROOM-32D de Mathias, où la connexion TLS simultanée au Bluetooth échouait. Les délais TLS sont exprimés en secondes dans `WiFiClientSecure`, et en millisecondes dans `HTTPClient`.
 
 L’ESP32 n’expose pas de serveur Web ni de secrets IA. Son mot de passe Wi-Fi demeure dans son firmware et dans ton fichier local ignoré. La publication est publique et se limite aux articles, à l’aperçu et au fichier d’impression. L’IA reçoit des titres et descriptions RSS ; elle ne reçoit pas ton Wi-Fi.
 

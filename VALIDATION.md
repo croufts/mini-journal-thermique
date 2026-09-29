@@ -21,6 +21,12 @@ Le dépôt a ensuite été publié sur [croufts/mini-journal-thermique](https://
 - **[Génération IA réelle réussie après correction](https://github.com/croufts/mini-journal-thermique/actions/runs/36546100384)** : fournisseur `OpenRouter`, modèle demandé `openrouter/free`, trois France, trois Monde et une Tech. Le binaire public contient 186 686 octets et son SHA-256 est `a5a0a566f45e2ca5b9ae474f5b755e024575e25cb8ed9f1141361408ad74968c`. Le décodage raster est identique pixel par pixel à l’aperçu 626 × 2362, inspecté visuellement.
 - **20 tests Python réussis après correction du format IA**, et vérifications GitHub exécutées sur le même correctif.
 
-Le téléversement physique de l’ESP32, l’appairage SPP, les interruptions d’alimentation et l’impression sur la M02 Pro restent à vérifier selon la procédure du README.
+- **ESP32 WROOM-32D détecté et programmé sur COM4**, puce ESP32-D0WD-V3, flash 4 Mo. LittleFS initialisé une seule fois. La configuration Wi-Fi et l’adresse de l’imprimante sont dans le fichier local ignoré ; elles ne sont pas publiées.
+- **Wi-Fi, heure NTP et téléchargement HTTPS vérifiés sur le matériel**. Une panne TLS observée avec le Bluetooth actif a été résolue en mettant Classic en pause pendant HTTPS, puis en le redémarrant. La validation des certificats et du SHA-256 reste active.
+- **M02 Pro détectée en Classic et connexion SPP établie**. Premier envoi à 128 octets / 25 ms : ticket complet mais lignes déformées, et état incertain conservé. Second essai à 64 octets / 40 ms : les 186 686 octets mis en file ont tous été confirmés par SPP, connexion maintenue, aucune erreur et date transmise mémorisée. Mathias a confirmé que le second ticket est complet et lisible, du début jusqu’à TECH.
+
+- **Redémarrage matériel effectué après l’impression** : cache vérifié rechargé, reconnexion Wi-Fi et heure NTP valide, date transmise du 29 septembre conservée, aucun état incertain et aucune nouvelle tentative d’impression pendant l’observation.
+
+Les coupures pendant un envoi et le fonctionnement sur chargeur avec le PC éteint restent à vérifier selon la procédure du README.
 
 La compilation ne garantit pas la prise en charge de Bluetooth Classic par toutes les révisions de M02 Pro. La longueur papier réelle, le bourrage à 632 positions et le débit Bluetooth doivent être confirmés lors du premier essai matériel.
