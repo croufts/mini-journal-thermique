@@ -8,7 +8,7 @@
 - **Image LittleFS construite**, prête pour l’initialisation de la partition.
 - **Chaîne HTTPS de raw.githubusercontent.com observée** : elle se termine sur ISRG Root X1 ; cette racine figure dans le firmware, avec deux racines supplémentaires pour les autres chaînes GitHub.
 
-Les appels réels à OpenRouter/Groq n’ont pas été effectués : aucune clé API n’était configurée dans la session. La logique de réponse et de secours a été vérifiée avec des réponses simulées.
+La logique de réponse et de secours a d’abord été vérifiée avec des réponses simulées. Groq reste facultatif et n’a pas été configuré ni appelé en direct.
 
 Le dépôt a ensuite été publié sur [croufts/mini-journal-thermique](https://github.com/croufts/mini-journal-thermique).
 
@@ -17,6 +17,9 @@ Le dépôt a ensuite été publié sur [croufts/mini-journal-thermique](https://
 - [Première génération réelle et publication automatique réussies](https://github.com/croufts/mini-journal-thermique/actions/runs/36543990015), avec le secours RSS en attendant la clé IA.
 - Le manifeste et le binaire publics ont été téléchargés sans authentification : date du 29 septembre 2026, 186 686 octets, SHA-256 valide, relecture en 626 × 2362 pixels et exactement une info Tech.
 - Le chemin explicite `refs/heads/journal` est utilisé pour éviter un cache 404 observé juste après la création de la branche sur le chemin abrégé.
+- **Secret OpenRouter configuré dans GitHub**, sans clé dans le code ni dans l’ESP32. Le premier essai authentifié a reçu des réponses invalides et publié le secours RSS. Le générateur demande maintenant un schéma JSON strict avec les identifiants de chaque section, les limites de longueur et exactement une info Tech ; les réponses tronquées sont refusées.
+- **[Génération IA réelle réussie après correction](https://github.com/croufts/mini-journal-thermique/actions/runs/36546100384)** : fournisseur `OpenRouter`, modèle demandé `openrouter/free`, trois France, trois Monde et une Tech. Le binaire public contient 186 686 octets et son SHA-256 est `a5a0a566f45e2ca5b9ae474f5b755e024575e25cb8ed9f1141361408ad74968c`. Le décodage raster est identique pixel par pixel à l’aperçu 626 × 2362, inspecté visuellement.
+- **20 tests Python réussis après correction du format IA**, et vérifications GitHub exécutées sur le même correctif.
 
 Le téléversement physique de l’ESP32, l’appairage SPP, les interruptions d’alimentation et l’impression sur la M02 Pro restent à vérifier selon la procédure du README.
 

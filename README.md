@@ -8,7 +8,7 @@ Le ticket commence par **« Bonjour Mathias. »**, puis la date et les sections 
 
 Le dépôt contient le générateur Python, les tests, les workflows GitHub, le firmware et les polices. Un exemple fictif figure dans `examples/preview.png`.
 
-L’installation GitHub de Mathias est disponible sur [croufts/mini-journal-thermique](https://github.com/croufts/mini-journal-thermique). Les workflows de génération quotidienne et de vérification sont actifs. Une première édition de secours RSS a été générée et publiée le 29 septembre 2026.
+L’installation GitHub de Mathias est disponible sur [croufts/mini-journal-thermique](https://github.com/croufts/mini-journal-thermique). Les workflows de génération quotidienne et de vérification sont actifs. Le secret OpenRouter est configuré et une [édition sélectionnée et résumée par OpenRouter a été générée et publiée le 29 septembre 2026](https://github.com/croufts/mini-journal-thermique/actions/runs/36546100384).
 
 L’adresse publique à utiliser pour cet ESP32 est :
 
@@ -16,7 +16,7 @@ L’adresse publique à utiliser pour cet ESP32 est :
 https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/
 ```
 
-Elle est déjà renseignée dans `config.example.h`. Pour activer la sélection IA, renseigner le secret OpenRouter décrit ci-dessous. Il reste également à configurer le Wi-Fi et l’adresse Bluetooth de l’imprimante, puis téléverser l’ESP32. L’impression physique et la compatibilité SPP de **ton exemplaire** doivent être testées sur place.
+Elle est déjà renseignée dans `config.example.h`. La partie Internet est opérationnelle sur ce compte. Il reste à configurer le Wi-Fi et l’adresse Bluetooth de l’imprimante, puis téléverser l’ESP32. L’impression physique et la compatibilité SPP de **ton exemplaire** doivent être testées sur place.
 
 ## Fonctionnement
 
