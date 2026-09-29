@@ -124,7 +124,8 @@ bool beginHttp(HTTPClient &http, WiFiClientSecure &tls, const String &url) {
     return false;
   }
   tls.setCACert(TLS_ROOTS); // Certificate AND hostname validation. Never setInsecure().
-  tls.setTimeout(15000);
+  tls.setTimeout(15); // WiFiClientSecure takes seconds, HTTPClient takes milliseconds.
+  tls.setHandshakeTimeout(45);
   http.setTimeout(15000);
   http.setConnectTimeout(15000);
   http.useHTTP10(true); // Avoid chunked-transfer framing in the streaming download.
@@ -185,6 +186,11 @@ bool pollJournal() {
   int length = http.getSize();
   if (status != HTTP_CODE_OK || length <= 0 || length > 2048) {
     Serial.printf("[HTTPS] Manifeste indisponible (%d)\n", status);
+    if (status < 0) {
+      char error[160] = {};
+      int code = tls.lastError(error, sizeof(error));
+      Serial.printf("[HTTPS] TLS=%d %s, RAM libre=%u\n", code, error, ESP.getFreeHeap());
+    }
     http.end(); return false;
   }
   String body = http.getString();
@@ -270,6 +276,9 @@ void printIfReady() {
     ok = printer.connected() && !transportFailed && acknowledgedBytes == cachedSize;
   }
   transmitting = false;
+  Serial.printf("[IMPRESSION] Mis en file=%u/%u confirmés SPP=%u connexion=%s erreur=%s\n",
+    unsigned(sent), unsigned(cachedSize), unsigned(acknowledgedBytes),
+    printer.connected() ? "OK" : "fermée", transportFailed ? "oui" : "non");
   if (ok && prefs.putString("printed", day) == day.length()) {
     prefs.remove("pending");
     Serial.printf("[IMPRESSION] Journal %s transmis, anti-doublon enregistré\n", day.c_str());
@@ -292,6 +301,21 @@ void command(const String &line) {
       prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str());
   } else if (line == "FETCH") {
     lastPoll = millis() - HTTP_POLL_MS;
+  } else if (line == "NET") {
+    Serial.printf("[NET] Wi-Fi=%s signal=%d dBm RAM=%u bloc=%u\n",
+      WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne", WiFi.RSSI(),
+      ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+    for (const char *host : {"raw.githubusercontent.com", "example.com"}) {
+      IPAddress address;
+      bool resolved = WiFi.hostByName(host, address);
+      Serial.printf("[NET] %s DNS=%s\n", host, resolved ? address.toString().c_str() : "échec");
+      if (resolved) {
+        WiFiClient probe;
+        bool connected = probe.connect(address, 443, 5000);
+        Serial.printf("[NET] %s TCP443=%s\n", host, connected ? "OK" : "échec");
+        probe.stop();
+      }
+    }
   } else if (line == "RETRY") {
     if (storageReady) prefs.remove("pending");
     lastBt = millis() - BT_POLL_MS;
@@ -308,7 +332,7 @@ void command(const String &line) {
     }
     Serial.println("[BT] Scan terminé (absence = éteinte, occupée ou modèle BLE uniquement)");
   } else {
-    Serial.println("Commandes : STATUS, FETCH, SCAN, RETRY, REPRINT (fin de ligne obligatoire)");
+    Serial.println("Commandes : STATUS, FETCH, NET, SCAN, RETRY, REPRINT (fin de ligne obligatoire)");
   }
 }
 
@@ -344,7 +368,12 @@ void loop() {
     lastWiFi = millis(); WiFi.reconnect(); Serial.println("[WIFI] Reconnexion...");
   }
   if (storageReady && WiFi.status() == WL_CONNECTED && !today().isEmpty() && millis() - lastPoll >= HTTP_POLL_MS) {
+    // Release the Classic stack during TLS: both stacks otherwise compete for heap and radio time.
+    if (btReady) { printer.end(); btReady = false; }
     bool success = pollJournal();
+    btReady = printer.begin("Journal-Mathias", true);
+    printer.register_callback(sppCallback);
+    if (BT_REQUIRE_PIN) printer.setPin(BT_PIN);
     lastPoll = millis();
     if (!success) lastPoll -= HTTP_POLL_MS - 60000UL; // Retry network failures after one minute.
   }
