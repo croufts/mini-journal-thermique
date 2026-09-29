@@ -1,0 +1,66 @@
+name: Journal quotidien
+
+on:
+  schedule:
+    # UTC: 05:17 Paris en hiver, 06:17 en été. GitHub peut retarder le départ.
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Régénérer même si une édition existe déjà aujourd’hui'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: journal-quotidien
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Installer les dépendances
+        run: python -m pip install -r requirements.txt
+      - name: Vérifier si une édition est nécessaire
+        id: gate
+        env:
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          due="$(python -m scripts.is_due)"
+          echo "due=$due" >> "$GITHUB_OUTPUT"
+      - name: Générer le journal
+        if: steps.gate.outputs.due == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python -m mini_journal
+      - name: Conserver l’aperçu pour diagnostic
+        if: steps.gate.outputs.due == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: journal-${{ github.run_id }}
+          path: out/
+          retention-days: 3
+      - name: Publier sur la branche journal
+        if: steps.gate.outputs.due == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.publish
+      - name: Résumé
+        env:
+          DUE: ${{ steps.gate.outputs.due }}
+        run: |
+          if [ "$DUE" = "true" ]; then
+            echo 'Journal généré, vérifié et publié. Aperçu disponible dans les artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Une édition existe déjà pour cette date : aucune nouvelle requête IA.' >> "$GITHUB_STEP_SUMMARY"
+          fi
