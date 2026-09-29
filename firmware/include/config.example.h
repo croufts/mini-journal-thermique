@@ -3,7 +3,7 @@
 // Copy to journal_config.h, which is ignored by Git. No API key belongs on the ESP32.
 #define WIFI_SSID "TON_WIFI_2_4_GHZ"
 #define WIFI_PASSWORD "TON_MOT_DE_PASSE"
-#define JOURNAL_BASE_URL "https://raw.githubusercontent.com/croufts/mini-journal-thermique/journal/"
+#define JOURNAL_BASE_URL "https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/"
 
 // Recommended: exact Bluetooth Classic MAC, read with the serial SCAN command.
 #define PRINTER_MAC "AA:BB:CC:DD:EE:FF"
