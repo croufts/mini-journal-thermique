@@ -5,10 +5,11 @@
 #define WIFI_PASSWORD "TON_MOT_DE_PASSE"
 #define JOURNAL_BASE_URL "https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/"
 
-// Recommended: exact Bluetooth Classic MAC, read with the serial SCAN command.
+// Exact Bluetooth LE MAC, read with the serial SCAN command.
 #define PRINTER_MAC "AA:BB:CC:DD:EE:FF"
 // Leave MAC empty to discover/connect by exact name (slower).
 #define PRINTER_NAME "M02 Pro"
+// Legacy Classic options below are ignored by the BLE firmware.
 #define BT_REQUIRE_PIN false
 #define BT_PIN "0000"
 #define BT_CHANNEL 1
@@ -20,5 +21,5 @@
 #define BT_CHUNK_DELAY_MS 10
 #define BT_FINISH_DELAY_MS 5000UL
 
-// 0: native density. DENSITY 1..4 is available for controlled serial calibration.
-#define BT_PRINT_DENSITY 0
+// 0: omit override. Density 4 retained after hardware comparison.
+#define BT_PRINT_DENSITY 4
