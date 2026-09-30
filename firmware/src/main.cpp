@@ -16,9 +16,14 @@
 #endif
 #include "tls_roots.h"
 
+#ifndef BT_PRINT_DENSITY
+#define BT_PRINT_DENSITY 0
+#endif
+
 #if !defined(CONFIG_BT_SPP_ENABLED)
 #error "An original ESP32 with Bluetooth Classic SPP is required (not S2/S3/C3/C6 or ESP8266)."
 #endif
+static_assert(BT_PRINT_DENSITY >= 0 && BT_PRINT_DENSITY <= 4, "Density must stay within the conservative configured range");
 static_assert(BT_CHUNK_BYTES > 0 && BT_CHUNK_BYTES <= 512, "Invalid chunk size");
 static_assert(HTTP_POLL_MS >= 60000UL, "HTTP interval must be at least one minute");
 
@@ -31,6 +36,7 @@ String cachedDate, cachedHash, cachedFile;
 size_t cachedSize = 0;
 uint32_t lastPoll = 0, lastBt = 0, lastWiFi = 0;
 String serialLine;
+uint8_t printDensity = BT_PRINT_DENSITY;
 const size_t MAX_JOB_BYTES = 200000;
 volatile bool transmitting = false, transportFailed = false;
 volatile uint32_t acknowledgedBytes = 0;
@@ -259,25 +265,56 @@ void printIfReady() {
   }
   uint8_t chunk[BT_CHUNK_BYTES];
   transportFailed = false; acknowledgedBytes = 0; transmitting = true;
-  bool ok = true;
-  size_t sent = 0;
-  while (sent < cachedSize) {
-    size_t n = job.read(chunk, min(sizeof(chunk), cachedSize - sent));
-    if (!n || transportFailed || !printer.connected() || printer.write(chunk, n) != n) { ok = false; break; }
-    sent += n;
+  size_t queued = 0, sent = 0;
+  // Queue at the configured base speed; SPP ACKs are transport receipts, not paper receipts.
+  auto sendChunk = [&](const uint8_t *data, size_t n) {
+    if (transportFailed || !printer.connected() || printer.write(data, n) != n) return false;
+    queued += n;
     delay(BT_CHUNK_DELAY_MS);
-    // Drain responses; their meaning is undocumented and must not be treated as print ACKs.
     while (printer.available()) printer.read();
+    return !transportFailed && printer.connected();
+  };
+  // ESC @ in the cached header resets settings: apply the M02-family energy command AFTER it.
+  const uint8_t expectedHeader[] = {0x1b, 0x40, 0x1b, 0x61, 0x01};
+  const uint8_t optionalPrefix[] = {0x10, 0xff, 0xfe, 0x01};
+  uint8_t header[sizeof(expectedHeader)];
+  bool ok = job.read(header, sizeof(optionalPrefix)) == sizeof(optionalPrefix);
+  if (ok && memcmp(header, optionalPrefix, sizeof(optionalPrefix)) == 0) {
+    ok = sendChunk(header, sizeof(optionalPrefix)); sent = sizeof(optionalPrefix);
+    if (ok) ok = job.read(header, sizeof(header)) == sizeof(header);
+  } else if (ok) {
+    ok = job.read(header + sizeof(optionalPrefix), 1) == 1;
+  }
+  ok = ok && memcmp(header, expectedHeader, sizeof(header)) == 0;
+  if (ok) { ok = sendChunk(header, sizeof(header)); sent += sizeof(header); }
+  const uint8_t density[] = {0x1f, 0x11, 0x02, printDensity};
+  if (ok && printDensity) ok = sendChunk(density, sizeof(density));
+  Serial.printf("[IMPRESSION] Densité=%u, blocs=%u, pause=%u ms\n",
+    printDensity, BT_CHUNK_BYTES, BT_CHUNK_DELAY_MS);
+  size_t progress = 16384;
+  while (ok && sent < cachedSize) {
+    size_t n = job.read(chunk, min(sizeof(chunk), cachedSize - sent));
+    if (!n || !sendChunk(chunk, n)) { ok = false; break; }
+    sent += n;
+    if (sent >= progress) {
+      Serial.printf("[IMPRESSION] Progression %u/%u\n", unsigned(sent), unsigned(cachedSize));
+      progress += 16384;
+    }
   }
   job.close();
   if (ok && sent == cachedSize) {
-    printer.flush(); // Wait until SPP has drained its transmit queue.
+    // Bound the wait instead of BluetoothSerial::flush(), which has no timeout.
+    uint32_t draining = millis();
+    while (acknowledgedBytes < queued && !transportFailed && printer.connected() && millis() - draining < 15000UL) {
+      while (printer.available()) printer.read();
+      delay(2);
+    }
     delay(BT_FINISH_DELAY_MS);
-    ok = printer.connected() && !transportFailed && acknowledgedBytes == cachedSize;
+    ok = printer.connected() && !transportFailed && acknowledgedBytes == queued;
   }
   transmitting = false;
-  Serial.printf("[IMPRESSION] Mis en file=%u/%u confirmés SPP=%u connexion=%s erreur=%s\n",
-    unsigned(sent), unsigned(cachedSize), unsigned(acknowledgedBytes),
+  Serial.printf("[IMPRESSION] Fichier=%u/%u, mis en file=%u, confirmés SPP=%u connexion=%s erreur=%s\n",
+    unsigned(sent), unsigned(cachedSize), unsigned(queued), unsigned(acknowledgedBytes),
     printer.connected() ? "OK" : "fermée", transportFailed ? "oui" : "non");
   if (ok && prefs.putString("printed", day) == day.length()) {
     prefs.remove("pending");
@@ -285,11 +322,12 @@ void printIfReady() {
   } else {
     Serial.println("[IMPRESSION] Envoi incertain. Pas de nouvel essai automatique. Vérifier le papier puis RETRY.");
   }
-  printer.disconnect();
+  if (ok) printer.disconnect();
   if (!ok) {
     // Drop any queued bytes before an explicit retry can open a fresh print session.
     printer.end();
     btReady = printer.begin("Journal-Mathias", true);
+    printer.register_callback(sppCallback);
     if (BT_REQUIRE_PIN) printer.setPin(BT_PIN);
   }
 }
@@ -299,6 +337,9 @@ void command(const String &line) {
     Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s\n",
       today().c_str(), cachedDate.c_str(), WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne",
       prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str());
+  } else if (line.length() == 9 && line.startsWith("DENSITY ") && line[8] >= '0' && line[8] <= '4') {
+    printDensity = line[8] - '0';
+    Serial.printf("[REGLAGE] Densité=%u (0 = réglage natif, en RAM)\n", printDensity);
   } else if (line == "FETCH") {
     lastPoll = millis() - HTTP_POLL_MS;
   } else if (line == "NET") {
