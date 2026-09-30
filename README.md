@@ -16,7 +16,7 @@ L’adresse publique à utiliser pour cet ESP32 est :
 https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/
 ```
 
-Elle est déjà renseignée dans `config.example.h`. La partie Internet est opérationnelle sur ce compte. L’ESP32 WROOM-32D de Mathias a été configuré et programmé : téléchargement vérifié, impression complète et lisible sur sa M02 Pro, puis garde anti-doublon conservée après redémarrage. La configuration matérielle reste locale et privée. Il reste à alimenter l’ESP32 sur un chargeur USB et à observer le prochain matin avec le PC éteint. Les étapes ci-dessous permettent de reproduire l’installation.
+Elle est déjà renseignée dans `config.example.h`. La partie Internet est opérationnelle sur ce compte. L’ESP32 WROOM-32D de Mathias a été configuré et programmé : téléchargement vérifié, impression complète et lisible sur sa M02 Pro, puis garde anti-doublon conservée après redémarrage. La configuration matérielle reste locale et privée. Le transport a été corrigé le 30 septembre pour éviter les paquets abandonnés par la file Arduino : le ticket complet est redevenu lisible à la vitesse initiale ; le niveau de densité 4 a ensuite donné un ticket complet et lisible, avec certaines zones encore légèrement pâles. Ce niveau est mémorisé sur l’ESP32 de Mathias. Il reste à alimenter l’ESP32 sur un chargeur USB et à observer le prochain matin avec le PC éteint. Les étapes ci-dessous permettent de reproduire l’installation.
 
 ## Fonctionnement
 
@@ -37,7 +37,7 @@ ESP32 alimenté en permanence
   → dès la connexion : envoi du journal, garde anti-doublon en mémoire permanente
 ```
 
-L’allumage de l’imprimante entraîne une impression après sa détection, habituellement dans la minute, en tenant compte de la durée de connexion. L’envoi prend environ deux minutes avec les réglages prudents par défaut : blocs de 64 octets et pause de 40 ms. Ce débit a permis une transmission complète sur la M02 Pro de Mathias ; le premier essai à 128 octets / 25 ms avait produit des lignes déformées et un envoi incertain.
+L’allumage de l’imprimante entraîne une impression après sa détection, habituellement dans la minute, en tenant compte de la durée de connexion. L’envoi utilise la vitesse initiale demandée par Mathias : blocs de 128 octets et pause de 25 ms (environ 40 secondes pour le fichier du journal, hors connexion et attente finale). Le firmware envoie directement par l’API SPP de l’ESP32, attend la fin de chaque écriture et respecte les événements de congestion, avec une attente bornée à quinze secondes. Il évite ainsi la file asynchrone de BluetoothSerial et son délai interne d’une seconde susceptible d’abandonner des paquets. La pause de base reste de 25 ms ; le débit réel tient compte de la disponibilité de la liaison. Un débit plus lent avait été essayé ; la qualité physique doit être contrôlée avec une imprimante suffisamment chargée.
 
 ## Gratuité
 
@@ -191,7 +191,7 @@ Le journal de la veille n’est jamais imprimé comme celui du jour. L’ESP32 a
 
 ## 7. Anti-doublons et interruptions
 
-Avant d’envoyer le premier octet, l’ESP32 enregistre une date **pending**. Après transmission complète, contrôle des événements SPP et vidage de la file d’envoi, il mémorise **printed**, puis retire pending. Le verrou porte sur la **date**, pas sur le hash : une régénération du jour ne provoque pas une seconde impression.
+Avant d’envoyer le premier octet, l’ESP32 enregistre une date **pending**. Après transmission complète, contrôle des confirmations SPP de chaque bloc, il mémorise **printed**, puis retire pending. Le verrou porte sur la **date**, pas sur le hash : une régénération du jour ne provoque pas une seconde impression.
 
 Les confirmations SPP concernent le transport des octets ; elles **ne prouvent pas** que le papier a été imprimé ou que le rouleau était présent. Une interruption ou un redémarrage pendant l’envoi laisse un état incertain, qui bloque les nouvelles impressions, y compris les jours suivants, jusqu’à ton intervention. Cela privilégie l’absence de doublon automatique. L’indication « transmis » signifie que le flux a été envoyé, pas qu’un capteur a confirmé le ticket physique.
 
@@ -199,6 +199,7 @@ Les confirmations SPP concernent le transport des octets ; elles **ne prouvent p
 |---|---|
 | `STATUS` | Affiche date, cache, Wi-Fi, date transmise et envoi incertain |
 | `FETCH` | Demande une vérification Internet immédiate |
+| `DENSITY 0..4` | Calibre la chauffe et mémorise le réglage ; 0 conserve la densité native |
 | `NET` | Diagnostic du signal Wi-Fi, de la mémoire, du DNS et de l’accès TCP 443 |
 | `SCAN` | Recherche les appareils Bluetooth Classic pendant 10 secondes |
 | `RETRY` | Retire le blocage incertain ; vérifier d’abord le papier partiellement imprimé |
@@ -255,3 +256,11 @@ config.json           Flux et paramètres éditoriaux/imprimante
 ```
 
 Le code original du projet est sous licence MIT. Les polices sont sous leur licence propre dans `assets/fonts/LICENSE`. Les projets de reverse engineering sont cités comme références ; leur code n’est pas incorporé.
+
+## Densité et texte pâle
+
+La densité native est conservée par défaut (`BT_PRINT_DENSITY 0`). Une commande série `DENSITY 0` garde ce réglage ; `DENSITY 1` à `DENSITY 4` active un réglage expérimental mémorisé en NVS, appliqué après `ESC @` avec la commande M02 `1F 11 02 NN`. Référence : [protocole M02 de phomemo-tools](https://github.com/vivier/phomemo-tools#41-header). Les premiers essais avec la file BluetoothSerial et la valeur 4 n’avaient pas terminé la transmission ; cela ne démontrait pas que la commande de densité était en cause. Le réglage natif reste le point de départ pour tester séparément transport et chauffe. Le fichier contient déjà du noir et blanc pur. Si le texte est pâle, charger l’imprimante et contrôler son autotest (double appui rapide sur le bouton) avant d’attribuer le problème à la mise en page : [diagnostic officiel M02 Pro](https://phomemo.com/pl-ca/pages/m02-pro-thermal-printing-general-questions-the-content-of-the-printing-is-missing-or-blurred).
+
+Référence du contrôle de congestion et des confirmations : [API SPP Espressif](https://docs.espressif.com/projects/esp-idf/en/v4.4.5/esp32/api-reference/bluetooth/esp_spp.html).
+
+Sur l’ESP32 de Mathias, `DENSITY 4` est le réglage visuellement validé le 30 septembre. Il demeure actif après redémarrage grâce à NVS. La cadence de 128 octets / 25 ms est conservée ; lorsque la liaison est saturée, le programme attend au lieu de perdre des blocs. Le niveau natif 2 visible sur l’autotest restait trop pâle pour son journal, bien que l’autotest lui-même fût net.
