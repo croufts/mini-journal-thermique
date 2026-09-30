@@ -16,7 +16,7 @@ L’adresse publique à utiliser pour cet ESP32 est :
 https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/
 ```
 
-Elle est déjà renseignée dans `config.example.h`. La partie Internet est opérationnelle sur ce compte. L’ESP32 WROOM-32D de Mathias a été configuré et programmé : téléchargement vérifié, impression complète et lisible sur sa M02 Pro, puis garde anti-doublon conservée après redémarrage. La configuration matérielle reste locale et privée. Le transport a été corrigé le 30 septembre pour éviter les paquets abandonnés par la file Arduino : le ticket complet est redevenu lisible à la vitesse initiale ; le niveau de densité 4 a ensuite donné un ticket complet et lisible, avec certaines zones encore légèrement pâles. Ce niveau est mémorisé sur l’ESP32 de Mathias. Il reste à alimenter l’ESP32 sur un chargeur USB et à observer le prochain matin avec le PC éteint. Les étapes ci-dessous permettent de reproduire l’installation.
+Elle est déjà renseignée dans `config.example.h`. La génération Internet, le téléchargement SHA-256 et le verrou quotidien sont opérationnels. Le firmware actuel utilise Bluetooth LE après des blocages et une qualité irrégulière en Classic. Le petit ticket BLE depuis l’ESP32 a été confirmé complet et lisible le 30 septembre. Le premier journal BLE complet présentait des traces blanches aux frontières de bandes. La version actuelle fusionne ces bandes ; sa qualité et le prochain démarrage avec le PC éteint restent à contrôler. Les identifiants Wi-Fi et l’adresse matérielle restent dans le fichier local ignoré par Git.
 
 ## Fonctionnement
 
@@ -33,11 +33,13 @@ ESP32 alimenté en permanence
   → Wi-Fi 2,4 GHz + heure Internet
   → lecture HTTPS du manifeste toutes les 5 minutes
   → téléchargement vérifié en flash, sans charger tout le fichier en RAM
-  → tentative Bluetooth Classic toutes les 20 secondes
+  → détection Bluetooth LE toutes les 20 secondes, scan de 3 secondes
   → dès la connexion : envoi du journal, garde anti-doublon en mémoire permanente
 ```
 
-L’allumage de l’imprimante entraîne une impression après sa détection, habituellement dans la minute, en tenant compte de la durée de connexion. L’envoi utilise la cadence retenue après calibration : blocs de 128 octets et pause de 10 ms (environ 15 secondes de pauses cumulées pour le journal, auxquelles s’ajoutent connexion, confirmations SPP et attente finale). Le firmware envoie directement par l’API SPP de l’ESP32, attend la fin de chaque écriture et respecte les événements de congestion, avec une attente bornée à quinze secondes. Il évite ainsi la file asynchrone de BluetoothSerial et son délai interne d’une seconde susceptible d’abandonner des paquets. La pause choisie est de 10 ms ; le débit réel tient compte de la disponibilité de la liaison. Un débit plus lent avait été essayé ; la qualité physique doit être contrôlée avec une imprimante suffisamment chargée.
+L’ESP32 découvre la M02 Pro, établit une liaison BLE chiffrée, puis utilise FF02 pour écrire et FF03 pour recevoir ses notifications. Il envoie des blocs d’au plus 182 octets, avec quatre crédits initiaux et un bloc supplémentaire par notification `01 01`. Aucune pause fixe n’est ajoutée. Il regroupe les bandes du cache en une seule image raster de 576 points, sans pause entre les bandes, puis attend une notification `1A 0F 0C` à la fin de cette image. Les crédits et notifications signalent le traitement du protocole ; contrôler aussi le papier, le capot et la qualité réelle.
+
+Le Wi-Fi est suspendu pendant l’impression et rétabli ensuite. La pile BLE est libérée pendant les téléchargements HTTPS. Les délais d’attente sont bornés et un envoi interrompu ne se répète pas automatiquement. Le scan précédent chaque connexion utilise l’adresse annoncée et son type ; des connexions directes sans scan avaient été refusées après réinitialisation de la pile sur cette M02 Pro.
 
 ## Gratuité
 
@@ -54,7 +56,7 @@ Ces services gratuits peuvent changer de quotas ou être temporairement indispon
 - Chargeur USB pour alimenter l’ESP32 quand le PC est éteint.
 - Wi-Fi **2,4 GHz** avec accès Internet ; SSID et mot de passe.
 
-Les ESP8266, ESP32-S2/S3/C3/C6 ne conviennent pas à ce firmware Bluetooth Classic. Certaines révisions d’imprimantes utilisent uniquement le BLE : si le scan Classic ne trouve pas la M02 Pro, vérifier la révision avant de chercher à modifier l’encodage. Ce firmware implémente le transport **SPP Classic**, pas le BLE.
+La cible PlatformIO reste `esp32dev`, testée sur ESP-WROOM-32D. L’ESP8266 n’a pas de Bluetooth. Les autres variantes ESP32 nécessitent une cible et une validation matérielle propres ; elles ne sont pas testées dans ce projet. L’imprimante doit exposer le service BLE FF00, avec FF02 writable et FF03 notify. Ce service peut être absent des annonces BLE : le scan cible le nom ou la MAC, pas le UUID de service annoncé.
 
 Aucun fil ne relie l’ESP32 à l’imprimante. Fermer l’application Phomemo sur le téléphone pendant les essais : une connexion existante peut empêcher celle de l’ESP32.
 
@@ -91,11 +93,11 @@ Sorties :
 | Fichier | Usage |
 |---|---|
 | `preview.png` | Aperçu monochrome avec résolution 300 dpi |
-| `journal-AAAA-MM-JJ-empreinte.bin` | Flux de commandes envoyé directement à l’imprimante |
+| `journal-AAAA-MM-JJ-empreinte.bin` | Flux raster conservé en flash ; adapté à 576 points par le firmware BLE |
 | `manifest.json` | Date, nom exact du binaire, taille, dimensions, SHA-256 |
 | `edition.json` | Texte réellement rendu, fournisseur utilisé et taille des caractères |
 
-Le binaire fait environ **187 ko**. Ce n’est pas un PNG : il ne nécessite aucune conversion sur l’ESP32.
+Le binaire fait environ **187 ko**. Ce n’est pas un PNG : l’ESP32 adapte les rangées binaires à la largeur retenue, sans décodage PNG et sans charger le journal entier en RAM.
 
 ## 3. Créer le dépôt GitHub
 
@@ -150,10 +152,10 @@ Copier `firmware/include/config.example.h` vers **`firmware/include/journal_conf
 
 - `WIFI_SSID`, `WIFI_PASSWORD` : identifiants Wi-Fi 2,4 GHz.
 - `JOURNAL_BASE_URL` : URL de la branche `journal`, **avec le `/` final**.
-- `PRINTER_MAC` : adresse Bluetooth Classic exacte de ta M02 Pro.
-- Si l’appairage exige un PIN : `BT_REQUIRE_PIN true`, puis le PIN réel dans `BT_PIN`.
+- `PRINTER_MAC` : adresse Bluetooth LE exacte de ta M02 Pro.
+- `BT_PRINT_DENSITY` : valeur initiale de chauffe, 4 retenue après comparaison. Une valeur déjà mémorisée en NVS garde la priorité.
 
-L’adresse peut être obtenue avec le scan décrit ci-dessous. Pour compiler et effectuer ce scan avant de connaître l’adresse, laisser la MAC d’exemple : aucune connexion utile ne se fera à cette adresse. Une MAC vide active la connexion par le nom **exact** `PRINTER_NAME`, plus lente et utilisant l’authentification de la bibliothèque.
+L’adresse peut être obtenue avec le scan décrit ci-dessous. Pour compiler et effectuer ce scan avant de connaître l’adresse, laisser la MAC d’exemple : aucune connexion utile ne se fera à cette adresse. Une MAC vide active la connexion par le nom **exact** `PRINTER_NAME`, via les annonces BLE. L’association chiffrée sans saisie de PIN est mémorisée par NimBLE.
 
 Brancher l’ESP32 avec un câble USB de données. Le pilote CH340 peut être nécessaire si aucun port COM n’apparaît. Trouver le port :
 
@@ -174,7 +176,7 @@ Remplacer `COM5` par le port détecté. Si la connexion de téléversement écho
 
 Le firmware ne formate jamais la flash automatiquement. `uploadfs` remplace le cache ; ne pas le répéter lors d’une mise à jour normale du firmware. La garde anti-doublon est stockée dans NVS ; un effacement complet de l’ESP32 la supprime.
 
-Dans le moniteur série, envoyer **SCAN**, avec une fin de ligne, imprimante allumée et application Phomemo fermée. Le scan affiche les adresses et noms des appareils Classic. Reporter l’adresse dans `journal_config.h`, fermer le moniteur et téléverser à nouveau le firmware. Si aucune M02 Pro n’apparaît, vérifier la charge, la portée, l’occupation par le téléphone et la prise en charge de Classic SPP.
+Dans le moniteur série, envoyer **SCAN**, avec une fin de ligne, imprimante allumée et application Phomemo fermée. Le scan affiche les adresses et noms des imprimantes M02 en BLE. Reporter l’adresse dans `journal_config.h`, fermer le moniteur et téléverser à nouveau le firmware. Si aucune M02 Pro n’apparaît, vérifier la charge, la portée et une connexion au téléphone ou au PC.
 
 Le partitionnement prévu est **4 Mo, application 3 Mo, LittleFS environ 1 Mo**, sans OTA. Le journal utilise deux emplacements en flash ; seul un téléchargement complet avec SHA-256 correct remplace le cache actif.
 
@@ -191,83 +193,55 @@ Le journal de la veille n’est jamais imprimé comme celui du jour. L’ESP32 a
 
 ## 7. Anti-doublons et interruptions
 
-Avant d’envoyer le premier octet, l’ESP32 enregistre une date **pending**. Après transmission complète, contrôle des confirmations SPP de chaque bloc, il mémorise **printed**, puis retire pending. Le verrou porte sur la **date**, pas sur le hash : une régénération du jour ne provoque pas une seconde impression.
+Avant d’envoyer le premier octet, l’ESP32 enregistre une date **pending**. Après transmission complète, contrôle des notifications de fin de chaque bande raster, il mémorise **printed**, puis retire pending. Le verrou porte sur la **date**, pas sur le hash : une régénération du jour ne provoque pas une seconde impression.
 
-Les confirmations SPP concernent le transport des octets ; elles **ne prouvent pas** que le papier a été imprimé ou que le rouleau était présent. Une interruption ou un redémarrage pendant l’envoi laisse un état incertain, qui bloque les nouvelles impressions, y compris les jours suivants, jusqu’à ton intervention. Cela privilégie l’absence de doublon automatique. L’indication « transmis » signifie que le flux a été envoyé, pas qu’un capteur a confirmé le ticket physique.
+Les notifications BLE ne garantissent pas la qualité physique du ticket. Une interruption ou un redémarrage pendant l’envoi laisse un état incertain, qui bloque les nouvelles impressions, y compris les jours suivants, jusqu’à une intervention. Le verrou quotidien reste conservé après une mise à jour du firmware. Ne pas effacer NVS ou réinstaller le filesystem lors d’une mise à jour normale.
 
 | Commande série | Effet |
 |---|---|
 | `STATUS` | Affiche date, cache, Wi-Fi, date transmise et envoi incertain |
 | `FETCH` | Demande une vérification Internet immédiate |
+| `TEST` | Imprime la comparaison courte ; ne modifie pas le cache ni la garde quotidienne |
 | `DENSITY 0..4` | Calibre la chauffe et mémorise le réglage ; 0 conserve la densité native |
 | `NET` | Diagnostic du signal Wi-Fi, de la mémoire, du DNS et de l’accès TCP 443 |
-| `SCAN` | Recherche les appareils Bluetooth Classic pendant 10 secondes |
+| `SCAN` | Recherche les annonces M02 en Bluetooth LE pendant cinq secondes |
 | `RETRY` | Retire le blocage incertain ; vérifier d’abord le papier partiellement imprimé |
 | `REPRINT` | Retire également le verrou de transmission et réimprime le cache du jour |
 
 Ne pas utiliser `RETRY` avant d’avoir vérifié ce qui est sorti : un ticket partiel pourrait être répété. `REPRINT` est utile si le flux a été transmis mais que le papier manquait.
 
-## 8. Encodage et réglages papier
+## 8. Encodage, largeur et diagnostic
 
-La largeur demandée est **626 pixels**. Le protocole raster exige des octets entiers : chaque ligne transporte **79 octets**, soit 632 positions, avec **six bits de bourrage blancs** à droite. Le texte garde des marges latérales de 26 pixels. La compatibilité de cette largeur doit être confirmée lors de ton premier test matériel.
+Le générateur conserve un canevas noir et blanc de **626 × 2362 pixels**. Le binaire publié utilise des rangées de 79 octets, avec six bits blancs de bourrage. Le firmware BLE rééchantillonne horizontalement les 626 points utiles vers **576 points** et envoie des rangées de 72 octets ; il ne coupe pas les caractères à droite. La hauteur ne change pas, soit environ 20 cm à 300 dpi. Le cache original conserve son SHA-256. Les petits tickets natifs de 576 points sont également acceptés.
 
-Le flux par défaut utilise `ESC @`, justification centrée, puis `GS v 0` en blocs de **255 lignes maximum**, dimensions little-endian, points noirs à 1, bit de poids fort en premier, et `ESC d` pour l’avance finale. C’est une implémentation indépendante du protocole documenté et du chemin CUPS M02/M02 Pro de [phomemo-tools](https://github.com/vivier/phomemo-tools), référence vérifiée : `d0522f058df7915674640b71aa6256d96bde4fd6`. Aucun pilote CUPS n’est requis sur l’ESP32.
+Le firmware vérifie la structure entière du job avant de commencer : en-tête ESC/POS, largeur admise, bandes de 1 à 255 lignes, hauteur totale jusqu’à 2362 et avance finale valide. Il applique l’alignement gauche et la chauffe après `ESC @`. Le protocole raster est dérivé du chemin M02 de [phomemo-tools](https://github.com/vivier/phomemo-tools) ; aucun pilote CUPS n’est installé sur l’ESP32. La liaison BLE s’appuie sur le service FF00 observé sur le matériel et le mécanisme de crédit décrit par [phomo](https://github.com/danielgormly/phomo/blob/main/Sources/phomo/BLE.swift).
 
-Le choix des 626 pixels est également documenté par [Phomymo](https://github.com/transcriptionstream/phomymo). Les firmwares et transports des différentes révisions ne sont pas tous identiques. Deux options dans `config.json` permettent de tester des variantes :
+`TEST` imprime un seul petit motif de 160 lignes (environ 1,35 cm avant avance), marqué **ESP32 BLE / 576 points**. Il utilise la chauffe mémorisée, affiche des textes normal et gras, une barre noire et un trait final, puis attend une notification de fin. Le test conserve le cache et le verrou quotidien. Régénérer son tableau compilé avec `python -m scripts.generate_calibration`.
 
-- `prefix: true` ajoute le préfixe `10 FF FE 01` utilisé sur un autre chemin M02. Par défaut, il est absent pour suivre le filtre CUPS Classic.
-- `legacy_lf_workaround: true` remplace dans les pixels `0A` par `14`, contournement de l’ancien outil M02. **Il altère certains pixels** ; il est désactivé par défaut et ne doit être testé qu’en cas de lignes cassées.
+La comparaison séparée des chauffes 4, 8 et 12 depuis le PC a donné trois bandes complètes et visuellement proches. La valeur **4** est retenue ; les valeurs expérimentales supérieures ne sont pas proposées par le firmware. L’autotest natif demeure la référence pour contrôler tête et papier. Des barres noires légèrement granuleuses persistent sur les photos de raster ; ne pas considérer les confirmations Bluetooth comme une validation de la qualité.
 
-Un canevas de 2362 lignes vaut environ **200 mm à 300 dpi**, auxquels s’ajoutent l’avance finale et les tolérances de l’imprimante. Pour réduire la longueur physique, baisser `printer.height` dans `config.json` ou `feed_lines` (deux par défaut). La mise en page refuse toute coupe de texte : elle réduit le corps jusqu’à 27 pixels, retire les brèves de moindre importance puis raccourcit les résumés si nécessaire. Une section France, une Monde et la Tech restent présentes.
+Un diagnostic PC facultatif utilise `bleak` :
 
-Si l’imprimante imprime des caractères incohérents, vérifier d’abord le modèle, le transport et le canal SPP. Si le ticket présente des coupures, augmenter `BT_CHUNK_DELAY_MS` à 40 ou 60 et éventuellement diminuer `BT_CHUNK_BYTES` à 64, puis retester. En cas d’envoi incertain, utiliser la procédure `RETRY` ci-dessus.
-
-## 9. Diagnostic et entretien
-
-Les logs GitHub indiquent les flux disponibles, le nombre de candidats, le fournisseur retenu ou le secours RSS, et les dimensions finales. Les erreurs API n’affichent ni les clés ni les réponses complètes. L’aperçu reste disponible dans les artifacts pendant trois jours. Le texte publié ne contient pas les URLs des sources RSS.
-
-| Symptôme | Vérification |
-|---|---|
-| Pas de journal du jour | Actions, état du workflow, erreur RSS/IA, permissions `contents: write`, protection de la branche `journal` |
-| HTTP 404 sur ESP32 | URL, dépôt public, branche `journal`, premier run terminé ; `FETCH` pour réessayer |
-| Wi-Fi absent | Réseau 2,4 GHz, mot de passe, alimentation USB |
-| Cache présent mais aucune impression | `STATUS`, heure Internet, date du cache, garde pending/printed, connexion téléphone |
-| Erreur flash | Initialisation LittleFS au premier usage, carte réellement dotée de 4 Mo |
-| Erreur HTTPS | Heure NTP, accès réseau, certificats racines à jour |
-| OpenRouter indisponible | Quota, clé, politiques de modèles gratuits ; secours Groq ou RSS dans les logs |
-
-HTTPS vérifie le certificat et le nom du serveur. `firmware/include/tls_roots.h` inclut ISRG Root X1, DigiCert Global Root G2 et Sectigo R46 pour les chaînes GitHub. Si les certificats changent, mettre à jour `certifi`, exécuter `python -m scripts.update_tls_roots`, vérifier les racines nécessaires et téléverser le firmware ; ne pas désactiver la validation TLS.
-
-Le firmware met le Bluetooth Classic en pause pendant chaque récupération HTTPS, puis le réactive. Cette séparation a permis le téléchargement vérifié sur l’ESP32 WROOM-32D de Mathias, où la connexion TLS simultanée au Bluetooth échouait. Les délais TLS sont exprimés en secondes dans `WiFiClientSecure`, et en millisecondes dans `HTTPClient`.
-
-L’ESP32 n’expose pas de serveur Web ni de secrets IA. Son mot de passe Wi-Fi demeure dans son firmware et dans ton fichier local ignoré. La publication est publique et se limite aux articles, à l’aperçu et au fichier d’impression. L’IA reçoit des titres et descriptions RSS ; elle ne reçoit pas ton Wi-Fi.
-
-## Structure du dépôt
-
-```text
-.github/workflows/    Génération quotidienne et vérifications
-mini_journal/         Flux, IA, mise en page, protocole, commande de génération
-firmware/             Projet PlatformIO ESP32 Classic
-scripts/              Publication, contrôle de date, certificats HTTPS
-tests/                Tests du protocole, mise en page, RSS, IA et publication
-assets/fonts/         Polices DejaVu avec leur licence
-examples/             Exemple fictif et aperçu
-config.json           Flux et paramètres éditoriaux/imprimante
+```powershell
+python -m pip install bleak
+python -m scripts.generate_density_test
+python -m scripts.ble_diagnostic --address ADRESSE_MAC_IMPRIMANTE --series out/density/series.json
 ```
 
-Le code original du projet est sous licence MIT. Les polices sont sous leur licence propre dans `assets/fonts/LICENSE`. Les projets de reverse engineering sont cités comme références ; leur code n’est pas incorporé.
+Ce script associe la M02 Pro avec chiffrement sous Windows, envoie des jobs indépendants, attend leurs notifications de fin et garde la liaison ouverte quinze secondes entre les motifs. Il ne modifie pas NVS de l’ESP32. Le PC sert seulement au diagnostic et peut rester éteint pendant l’usage autonome.
 
-## Densité et texte pâle
+## 9. Vérifier un problème
 
-La densité native est conservée par défaut (`BT_PRINT_DENSITY 0`). Une commande série `DENSITY 0` garde ce réglage ; `DENSITY 1` à `DENSITY 4` active un réglage expérimental mémorisé en NVS, appliqué après `ESC @` avec la commande M02 `1F 11 02 NN`. Référence : [protocole M02 de phomemo-tools](https://github.com/vivier/phomemo-tools#41-header). Les premiers essais avec la file BluetoothSerial et la valeur 4 n’avaient pas terminé la transmission ; cela ne démontrait pas que la commande de densité était en cause. Le réglage natif reste le point de départ pour tester séparément transport et chauffe. Le fichier contient déjà du noir et blanc pur. Si le texte est pâle, charger l’imprimante et contrôler son autotest (double appui rapide sur le bouton) avant d’attribuer le problème à la mise en page : [diagnostic officiel M02 Pro](https://phomemo.com/pl-ca/pages/m02-pro-thermal-printing-general-questions-the-content-of-the-printing-is-missing-or-blurred).
+- Aucun ticket : vérifier la date de `manifest.json`, puis `STATUS` (date, cache, imprimé, incertain). Un journal déjà marqué imprimé ne se répète pas.
+- Connexion refusée : vérifier l’allumage, la proximité et fermer l’application du téléphone ; consulter `SCAN`. Un refus avant l’envoi ne marque pas le journal comme imprimé.
+- Envoi incertain : examiner le papier, éteindre/rallumer l’imprimante pour vider un raster incomplet, puis utiliser `RETRY` une fois si une répétition est souhaitée.
+- Texte pâle : contrôler charge, papier et autotest natif. Comparer `TEST` avant de toucher au transport ou à la chauffe.
+- Journal vide ou corrompu : la validation SHA-256 et la validation raster refusent sa transmission. L’ancien cache reste disponible après un téléchargement incomplet.
 
-Référence du contrôle de congestion et des confirmations : [API SPP Espressif](https://docs.espressif.com/projects/esp-idf/en/v4.4.5/esp32/api-reference/bluetooth/esp_spp.html).
+La compilation et les tests logiciels ne remplacent pas la validation d’un journal entier et du démarrage suivant, PC éteint.
 
-Sur l’ESP32 de Mathias, `DENSITY 4` est le réglage visuellement validé le 30 septembre. Il demeure actif après redémarrage grâce à NVS. La cadence de 128 octets / 10 ms est conservée ; lorsque la liaison est saturée, le programme attend au lieu de perdre des blocs. Le niveau natif 2 visible sur l’autotest restait trop pâle pour son journal, bien que l’autotest lui-même fût net.
+### Correction des titres et des coupures du 30 septembre
 
+Les titres terminés par un mot de liaison et les négations manifestement incomplètes sont refusés avant publication. Le second appel IA reçoit le motif de refus et doit reformuler. Ces contrôles ciblés ne remplacent pas une relecture éditoriale complète. Le secours RSS conserve des titres entiers courts et des phrases entières ; si aucune sélection valide ne peut être obtenue, aucune édition n’est publiée. La mise en page ne coupe plus un résumé au milieu d’une phrase.
 
-### Calibration de la cadence, 30 septembre 2026
-
-Le ticket court `TEST` compare trois motifs identiques à 624 points et densité 4 : D avec pause de 25 ms, E avec 10 ms, F sans pause ajoutée. Mathias a jugé les blocs E et F assez bons ; 10 ms est retenu. La commande `PACE 10` mémorise cette pause en NVS, comme `DENSITY 4` pour la chauffe. `STATUS` affiche ces deux réglages. Le journal garde son format de 626 points ; le test précédent à 624 points et densité 6 n’avait pas supprimé les bandes claires.
-
-Le Wi-Fi est suspendu pendant la connexion et l’envoi Bluetooth, puis rétabli sur tous les chemins de sortie. Le test D/E/F a confirmé 39858/39858 octets dans ces conditions. Les confirmations SPP et la gestion de congestion restent actives à toutes les cadences. La qualité du journal entier à 10 ms reste à contrôler au prochain tirage ; la comparaison validée porte sur le petit ticket. `TEST` conserve le cache et les gardes anti-doublon, et rétablit la cadence choisie après sa comparaison.
+Le cache conserve son format historique en bandes, mais le firmware transmet une seule commande GS v 0 pour toutes les lignes. Il conserve le contrôle de débit par crédits BLE, la garde en NVS et le Wi-Fi suspendu. Aucun arrêt volontaire n’est ajouté à la frontière des anciennes bandes ; un arrêt imposé par l’imprimante reste possible et doit être contrôlé sur le papier.
