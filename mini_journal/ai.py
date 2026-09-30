@@ -27,7 +27,7 @@ Rends uniquement un objet JSON :
 L'id doit appartenir aux candidats de la section correspondante."""
 
 
-def validate(value, candidates):
+def validate(value, candidates, editorial=True):
     if not isinstance(value, dict) or set(value) != set(SECTIONS):
         raise ValueError("Sections JSON invalides")
     by_id = {i["id"]: i for i in candidates}
@@ -49,7 +49,8 @@ def validate(value, candidates):
             title, summary = clean(article["title"], 180), clean(article["summary"], 600)
             if len(title) > 65 or len(summary) > 240 or re.search(r"https?://|www\.", title + summary):
                 raise ValueError("Article trop long ou URL affichée")
-            check_complete(title, summary)
+            if editorial:
+                check_complete(title, summary)
             result[section].append({"id": identity, "title": title, "summary": summary})
             used.add(identity)
     return result
@@ -157,7 +158,9 @@ def select(candidates, config):
                 choice = response.json()["choices"][0]
                 if choice.get("finish_reason") == "length":
                     raise ValueError("Réponse tronquée")
-                articles = validate(parse_json(choice["message"]["content"]), candidates)
+                # Validate structure before re-reading; incomplete grammar in
+                # the draft must reach the review so it can be repaired.
+                articles = validate(parse_json(choice["message"]["content"]), candidates, editorial=False)
                 # A separate editorial pass catches grammar beyond the targeted
                 # deterministic guards. Ground it in the same RSS candidates.
                 payload["messages"].extend([
