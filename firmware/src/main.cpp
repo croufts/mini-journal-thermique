@@ -30,6 +30,7 @@ Preferences prefs;
 bool storageReady = false;
 bool btReady = false;
 bool refreshBeforePrint = false;
+uint32_t scheduledPrint = 0;
 int activeSlot = 0;
 String cachedDate, cachedHash, cachedFile;
 size_t cachedSize = 0;
@@ -294,6 +295,7 @@ void printCalibration() {
 
 void command(const String &line) {
   if (line == "STATUS") {
+    Serial.printf("[PLAN] Prochain essai=%u UTC Unix\n", scheduledPrint);
     Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s densite=%u transport=BLE largeur=576 hash=%s actualisation=%s\n",
       today().c_str(), cachedDate.c_str(), WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne",
       prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str(), printDensity,
@@ -327,6 +329,17 @@ void command(const String &line) {
     if (storageReady) prefs.remove("pending");
     lastBt = millis() - BT_POLL_MS;
     Serial.println("[IMPRESSION] Blocage incertain levé. Une impression partielle peut se répéter.");
+  } else if (line.startsWith("PRINTAT ")) {
+    String value = line.substring(8);
+    for (char c : value) if (!isDigit(c)) { Serial.println("[PLAN] Heure invalide"); return; }
+    uint32_t target = strtoul(value.c_str(), nullptr, 10);
+    time_t now = time(nullptr);
+    if (!storageReady || value.length() != 10 || now < 1704067200 || target <= now || target - now > 86400 ||
+        prefs.putUInt("printAt", target) != sizeof(uint32_t)) {
+      Serial.println("[PLAN] Programmation refusee"); return;
+    }
+    scheduledPrint = target;
+    Serial.printf("[PLAN] Impression unique programmee : %u UTC Unix\n", scheduledPrint);
   } else if (line == "REPRINT") {
     if (!storageReady || prefs.putBool("refresh", true) != 1) {
       Serial.println("[NVS] Réimpression annulée : actualisation non mémorisée"); return;
@@ -339,7 +352,7 @@ void command(const String &line) {
   } else if (line == "SCAN" && btReady) {
     printer.scan();
   } else {
-    Serial.println("Commandes : STATUS, FETCH, NET, SCAN, RETRY, REPRINT, TEST, DENSITY 0..4");
+    Serial.println("Commandes : STATUS, FETCH, NET, SCAN, RETRY, REPRINT, PRINTAT timestamp, TEST, DENSITY 0..4");
   }
 }
 
@@ -350,6 +363,7 @@ void setup() {
   if (LittleFS.begin(false) && prefs.begin("journal", false)) {
     storageReady = true; loadCache();
     refreshBeforePrint = prefs.getBool("refresh", false);
+    scheduledPrint = prefs.getUInt("printAt", 0);
     printDensity = prefs.getUChar("density", BT_PRINT_DENSITY);
     if (printDensity > 4) printDensity = BT_PRINT_DENSITY;
   } else {
@@ -371,6 +385,15 @@ void loop() {
     char c = Serial.read();
     if (c == '\n') { serialLine.trim(); command(serialLine); serialLine = ""; }
     else if (c != '\r' && serialLine.length() < 80) serialLine += c;
+  }
+  if (scheduledPrint && time(nullptr) >= scheduledPrint) {
+    uint32_t target = scheduledPrint;
+    // Disarm durably before changing guards. A stale test must never repeat tomorrow.
+    if (prefs.remove("printAt")) {
+      scheduledPrint = 0;
+      if (time(nullptr) - target <= 3600) command("REPRINT");
+      else Serial.println("[PLAN] Essai expire, impression quotidienne conservee");
+    }
   }
   if (WiFi.status() != WL_CONNECTED && millis() - lastWiFi >= 60000UL) {
     lastWiFi = millis(); WiFi.reconnect(); Serial.println("[WIFI] Reconnexion...");
