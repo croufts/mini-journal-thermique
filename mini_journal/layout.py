@@ -79,7 +79,7 @@ def render(articles, day, printer, emergency=False):
         for body_size in (31, 29, 27):
             commands, used = compose(fitted, day, width, body_size, emergency)
             if used <= height:
-                image = Image.new("L", (width, height), 255)
+                image = Image.new("L", (width, used), 255)
                 draw = ImageDraw.Draw(image)
                 for kind, position, value, face in commands:
                     if kind == "text":
