@@ -134,9 +134,9 @@ Le dépôt public rend aussi publics le journal, son aperçu et la mention « Bo
 
 ## 4. Heure du journal
 
-La planification par défaut est **04:17 UTC** : **05:17 à Paris en hiver**, **06:17 en été**. La date imprimée utilise `Europe/Paris`. Changer la ligne `cron` dans `.github/workflows/journal.yml` pour choisir une autre heure.
+La première tentative est **03:17 UTC** : **04:17 à Paris en hiver**, **05:17 en été**, pour préparer le journal avant un allumage de l’ESP32 à 06:15. Des tentatives de rattrapage ont lieu toutes les 30 minutes jusqu’à 10:47 UTC. Chaque lancement vérifie la date publiée : après une génération réussie, les suivants ne font aucun appel IA et ne republient rien. La date imprimée utilise `Europe/Paris`. Changer la ligne `cron` dans `.github/workflows/journal.yml` pour choisir une autre plage.
 
-GitHub peut retarder ou manquer un lancement ; prévoir de la marge avant ton réveil. Un lancement manuel ou une relance le même jour ne refait pas de requête IA si une édition existe déjà. L’option **force** régénère ce jour-là ; l’ESP32 garde néanmoins son verrou d’impression par date.
+GitHub peut retarder ou manquer un lancement ; les rattrapages réduisent le risque sans garantir une heure précise. Si aucun ticket ne sort, vérifier d’abord que le manifeste porte la date du jour. L’ESP32 le relit toutes les cinq minutes : laisser l’imprimante allumée après une publication tardive. Un lancement manuel ou une relance le même jour ne refait pas de requête IA si une édition existe déjà. L’option **force** régénère ce jour-là ; l’ESP32 garde néanmoins son verrou d’impression par date.
 
 Le workflow doit être présent sur la branche par défaut `main`. La branche `journal` est un instantané, remplacé à chaque publication avec une protection contre les modifications concurrentes. Ne pas l’utiliser pour conserver du code, et ne pas bloquer ses force pushes dans les règles du dépôt. Les anciens tickets ne sont pas archivés dans son historique accessible.
 

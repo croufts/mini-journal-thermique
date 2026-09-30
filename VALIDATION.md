@@ -30,3 +30,9 @@ Le dépôt a ensuite été publié sur [croufts/mini-journal-thermique](https://
 Les coupures pendant un envoi et le fonctionnement sur chargeur avec le PC éteint restent à vérifier selon la procédure du README.
 
 La compilation ne garantit pas la prise en charge de Bluetooth Classic par toutes les révisions de M02 Pro. La longueur papier réelle, le bourrage à 632 positions et le débit Bluetooth doivent être confirmés lors du premier essai matériel.
+
+## Incident du 30 septembre 2026
+
+À 09:30 Paris, aucune exécution planifiée n’apparaissait dans Actions et le manifeste public portait encore la date du 29 septembre. Le workflow était actif sur la branche par défaut main. L’absence d’édition du jour suffit à expliquer le refus d’impression prévu par le firmware ; le fonctionnement de l’ESP32 sur chargeur n’a pas été observé par logs. La cause exacte du lancement manquant côté GitHub n’est pas établie.
+
+La planification démarre désormais à 03:17 UTC, avec rattrapage toutes les trente minutes jusqu’à 10:47 UTC. Le garde de date existant conserve une seule génération par jour après publication réussie. Une génération manuelle du 30 septembre a été déclenchée pour rétablir l’édition du jour. La fiabilité des prochaines exécutions planifiées reste à observer.
