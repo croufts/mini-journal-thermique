@@ -43,7 +43,7 @@ Le Wi-Fi est suspendu pendant l’impression et rétabli ensuite. La pile BLE es
 
 ## Gratuité
 
-- **OpenRouter** : le modèle `openrouter/free` sélectionne un modèle gratuit disponible. Le générateur refuse les modèles OpenRouter payants. Deux tentatives maximum par édition, puis secours éventuel ; le quota gratuit publié est de 50 requêtes/jour. [Offre officielle](https://openrouter.ai/pricing/), [routeur gratuit](https://openrouter.ai/discover).
+- **OpenRouter** : le modèle `openrouter/free` sélectionne un modèle gratuit disponible. Le générateur refuse les modèles OpenRouter payants. Deux tentatives maximum par fournisseur, chacune avec sélection puis relecture, puis secours éventuel ; le quota gratuit publié est de 50 requêtes/jour. [Offre officielle](https://openrouter.ai/pricing/), [routeur gratuit](https://openrouter.ai/discover).
 - **Groq**, facultatif : configuré avec `openai/gpt-oss-20b`. Créer un compte au **Free tier**, sans passer au Developer plan. Les quotas exacts dépendent du compte et du modèle. Le code ne peut pas déterminer si ton compte a été converti en offre payante. [Quotas officiels](https://console.groq.com/docs/rate-limits).
 - **GitHub Actions** : les runners standard sont gratuits pour les dépôts publics. Ce montage publie le journal sans token dans l’ESP32. [Conditions de facturation](https://docs.github.com/en/actions/concepts/billing-and-usage).
 
@@ -242,6 +242,6 @@ La compilation et les tests logiciels ne remplacent pas la validation d’un jou
 
 ### Correction des titres et des coupures du 30 septembre
 
-Les titres terminés par un mot de liaison et les négations manifestement incomplètes sont refusés avant publication. Le second appel IA reçoit le motif de refus et doit reformuler. Ces contrôles ciblés ne remplacent pas une relecture éditoriale complète. Le secours RSS conserve des titres entiers courts et des phrases entières ; si aucune sélection valide ne peut être obtenue, aucune édition n’est publiée. La mise en page ne coupe plus un résumé au milieu d’une phrase.
+Les titres terminés par un mot de liaison et les négations manifestement incomplètes sont refusés avant publication. Après la sélection, une seconde passe IA relit systématiquement les textes avec les mêmes données RSS et les mêmes identifiants. Si une tentative est refusée, la tentative suivante reçoit le motif et doit reformuler. Ces contrôles ciblés ne remplacent pas une relecture éditoriale complète. Le secours RSS conserve des titres entiers courts et des phrases entières ; si aucune sélection valide ne peut être obtenue, aucune édition n’est publiée. La mise en page ne coupe plus un résumé au milieu d’une phrase.
 
 Le cache conserve son format historique en bandes, mais le firmware transmet une seule commande GS v 0 pour toutes les lignes. Il conserve le contrôle de débit par crédits BLE, la garde en NVS et le Wi-Fi suspendu. Aucun arrêt volontaire n’est ajouté à la frontière des anciennes bandes ; un arrêt imposé par l’imprimante reste possible et doit être contrôlé sur le papier.

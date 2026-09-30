@@ -1,6 +1,6 @@
 # Validation du 30 septembre 2026
 
-- 24 tests Python passent, dont les trois titres incomplets observés sur le ticket et la conservation de phrases entières.
+- 25 tests Python passent, dont les trois titres incomplets observés sur le ticket et la conservation de phrases entières et l’utilisation de la sortie relue.
 - Firmware ESP32 WROOM-32D compilé et téléversé via COM4, sans effacement du cache ni de NVS.
 - Petit ticket ESP32 BLE / 576 points confirmé lisible par Mathias.
 - Le premier journal BLE était complet mais présentait des traces blanches périodiques avec les bandes séparées.
