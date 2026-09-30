@@ -85,6 +85,9 @@ def rss_fallback(candidates):
                        key=lambda c: c["published"], reverse=True)
         result[section] = []
         for c in items:
+            # Entertainment reviews from mixed feeds are not general/Tech news.
+            if re.search(r"netflix|arte\.tv|\bgta\b|\bcasting\b|\bsaison \d", c["title"], re.I):
+                continue
             title = c["title"]
             # Preserve long RSS headlines whole in the body, never truncate them.
             if len(title) > 65:
