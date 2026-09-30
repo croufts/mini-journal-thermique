@@ -77,6 +77,24 @@ def test_rejects_invalid_ai(change):
     with pytest.raises(ValueError): ai.validate(invalid, CANDIDATES)
 
 
+@pytest.mark.parametrize("title", [
+    "Les Etats-Unis annoncent la fin officielle de la mission de la",
+    "Budget social : les conséquences redoutées d’une",
+    "Les géants de l’IA ne s’intéressent aux résultats mathématiques",
+])
+def test_rejects_observed_incomplete_titles(title):
+    invalid = deepcopy(VALID)
+    invalid["tech"][0]["title"] = title
+    with pytest.raises(ValueError, match="grammaticalement incomplet"):
+        ai.validate(invalid, CANDIDATES)
+
+
+def test_complete_sentence_fitting_preserves_negation():
+    text = "Une phrase complète. Les géants ne privilégient pas la recherche."
+    assert ai.complete_sentences(text, 48) == "Une phrase complète."
+    assert ai.complete_sentences("Les géants ne privilégient pas la recherche.", 20) == ""
+
+
 def response(content):
     mock = Mock()
     mock.json.return_value = {"choices": [{"message": {"content": json.dumps(content)}}]}
