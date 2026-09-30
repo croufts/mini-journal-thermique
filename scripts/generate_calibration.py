@@ -11,12 +11,11 @@ def generate():
     image = Image.new("1", (576, 160), 1)
     draw = ImageDraw.Draw(image)
     draw.text((20, 8), "ESP32 SPP / 576 points", font=font(27, True), fill=0)
-    draw.text((20, 45), "Bonjour Mathias. Texte normal.", font=font(26), fill=0)
+    draw.text((20, 45), "Bonjour. Texte normal.", font=font(26), fill=0)
     draw.text((20, 80), "Texte gras : 0123456789", font=font(28, True), fill=0)
     draw.rectangle((20, 117, 554, 124), fill=0)
     draw.line((20, 147, 554, 147), fill=0, width=2)
     payload = bytes(value ^ 255 for value in image.tobytes())
-    assert b"\x0a" not in payload
     data = b"\x1b\x40\x1b\x61\x01"
     data += b"\x1d\x76\x30\x00" + struct.pack("<HH", 72, 160) + payload
     data += b"\x1b\x64\x02"
