@@ -18,6 +18,7 @@ FRANCE : événements nationaux français. MONDE : événements hors de France.
 TECH : exactement une information technologique importante.
 Choisis 1 à 3 articles FRANCE et 1 à 3 MONDE, classés par importance, et exactement 1 TECH.
 Environ 220 mots maximum au total. Titres français, courts (65 caractères maximum).
+Reformule pour respecter les limites : ne coupe jamais un mot, une phrase ou une négation.
 Résumés français très concis (240 caractères maximum), sans source ni URL.
 Aucune icône, aucun emoji, aucune météo. Pas de nom de média cité dans le texte.
 Rends uniquement un objet JSON :
@@ -46,8 +47,9 @@ def validate(value, candidates, editorial=True):
                 raise ValueError("Identifiant absent, dupliqué ou dans la mauvaise section")
             if not all(isinstance(article.get(k), str) and article[k].strip() for k in ("title", "summary")):
                 raise ValueError("Titre/résumé manquant")
-            title, summary = clean(article["title"], 180), clean(article["summary"], 600)
-            if len(title) > 65 or len(summary) > 240 or re.search(r"https?://|www\.", title + summary):
+            title = clean(article["title"], len(article["title"]))
+            summary = clean(article["summary"], len(article["summary"]))
+            if (editorial and (len(title) > 65 or len(summary) > 240)) or re.search(r"https?://|www\.", title + summary):
                 raise ValueError("Article trop long ou URL affichée")
             if editorial:
                 check_complete(title, summary)
@@ -114,13 +116,6 @@ def complete_sentences(value, maximum):
     return value[:endings[-1]].strip() if endings else ""
 
 
-def shorten(value, maximum):
-    if len(value) <= maximum:
-        return value
-    prefix = value[:maximum - 1]
-    return (prefix.rsplit(" ", 1)[0] if " " in prefix else prefix) + "…"
-
-
 def response_schema(candidates):
     properties = {}
     for section in SECTIONS:
@@ -130,8 +125,8 @@ def response_schema(candidates):
                       "required": ["id", "title", "summary"],
                       "properties": {
                           "id": {"type": "string", "enum": [c["id"] for c in candidates if c["section"] == section]},
-                          "title": {"type": "string", "minLength": 1, "maxLength": 65},
-                          "summary": {"type": "string", "minLength": 1, "maxLength": 240}}}}
+                          "title": {"type": "string"},
+                          "summary": {"type": "string"}}}}
     return {"type": "json_schema", "json_schema": {"name": "mini_journal", "strict": True,
             "schema": {"type": "object", "additionalProperties": False,
                        "required": list(SECTIONS), "properties": properties}}}

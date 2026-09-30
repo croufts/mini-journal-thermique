@@ -1,7 +1,7 @@
 """Independent implementation of the ESC/POS raster protocol documented by phomemo-tools.
 
 626 pixels are padded to 632 (79 bytes). Padding bits are always white.
-The old 0x0a replacement is optional and lossy; not enabled on the CUPS protocol path.
+Historical jobs with an optional prefix remain readable.
 """
 import struct
 
@@ -11,7 +11,7 @@ HEADER = b"\x1b\x40\x1b\x61\x01"
 PREFIX = b"\x10\xff\xfe\x01"
 
 
-def encode(image, feed_lines=2, prefix=False, legacy_lf_workaround=False):
+def encode(image, feed_lines=2):
     if image.width != 626 or not 1 <= image.height <= 2362:
         raise ValueError("Format M02 Pro invalide")
     if not 0 <= feed_lines <= 10:
@@ -22,9 +22,7 @@ def encode(image, feed_lines=2, prefix=False, legacy_lf_workaround=False):
     stride = (image.width + 7) // 8
     for row in range(image.height):
         payload[(row + 1) * stride - 1] &= 0xc0
-    if legacy_lf_workaround:
-        payload = payload.replace(b"\x0a", b"\x14")
-    stream = bytearray((PREFIX if prefix else b"") + HEADER)
+    stream = bytearray(HEADER)
     for row in range(0, image.height, 255):
         count = min(255, image.height - row)
         stream += b"\x1d\x76\x30\x00" + struct.pack("<HH", stride, count)
@@ -41,6 +39,8 @@ def decode(data):
     offset += len(HEADER)
     raster, total, stride = bytearray(), 0, 79
     while data[offset:offset + 4] == b"\x1d\x76\x30\x00":
+        if len(data) - offset < 8:
+            raise ValueError("En-tête raster tronqué")
         width, count = struct.unpack("<HH", data[offset + 4:offset + 8])
         if width != stride or not 1 <= count <= 255:
             raise ValueError("Bloc raster invalide")
@@ -51,6 +51,7 @@ def decode(data):
         raster.extend(b ^ 0xff for b in block)
         offset += len(block)
         total += count
-    if not 1 <= total <= 2362 or len(data) != offset + 3 or data[offset:offset + 2] != b"\x1b\x64":
+    if (not 1 <= total <= 2362 or len(data) != offset + 3
+            or data[offset:offset + 2] != b"\x1b\x64" or data[-1] > 10):
         raise ValueError("Fin de flux invalide")
     return Image.frombytes("1", (626, total), bytes(raster))

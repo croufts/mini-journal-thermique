@@ -1,4 +1,5 @@
 from copy import deepcopy
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -11,6 +12,7 @@ LABELS = {"france": "FRANCE", "world": "MONDE", "tech": "TECH"}
 MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre")
 
 
+@lru_cache(maxsize=24)
 def font(size, bold=False):
     return ImageFont.truetype(str(FONTS / ("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf")), size)
 
@@ -39,7 +41,7 @@ def wrap(text, face, width):
     return lines
 
 
-def compose(articles, day, width, body_size, emergency):
+def compose(articles, day, width, body_size, emergency, greeting):
     margin, y = 26, 24
     commands = []
     def text(value, size, bold=False, gap=8):
@@ -53,7 +55,7 @@ def compose(articles, day, width, body_size, emergency):
         nonlocal y
         commands.append(("rule", (margin, y, width - margin, y), None, None))
         y += gap
-    text("Bonjour Mathias.", 43, True, 5)
+    text(greeting, 43, True, 5)
     text(f"{day.day} {MONTHS[day.month - 1]} {day.year}", 23, gap=14)
     if emergency:
         text("Édition de secours RSS", 22, gap=10)
@@ -67,7 +69,7 @@ def compose(articles, day, width, body_size, emergency):
     return commands, y + 24
 
 
-def render(articles, day, printer, emergency=False):
+def render(articles, day, printer, emergency=False, greeting="Bonjour."):
     width, height = printer["width"], printer["height"]
     if width != 626 or not 800 <= height <= 2362:
         raise ValueError("Format attendu : largeur 626, hauteur 800 à 2362")
@@ -77,7 +79,7 @@ def render(articles, day, printer, emergency=False):
     # Fit the actual pixel geometry, never crop text. Keep a readable 27px minimum.
     while True:
         for body_size in (31, 29, 27):
-            commands, used = compose(fitted, day, width, body_size, emergency)
+            commands, used = compose(fitted, day, width, body_size, emergency, greeting)
             if used <= height:
                 image = Image.new("L", (width, used), 255)
                 draw = ImageDraw.Draw(image)

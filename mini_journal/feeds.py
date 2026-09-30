@@ -44,7 +44,7 @@ def parse_feed(data, section, now, max_age_hours):
 def fetch_one(feed, now, max_age_hours):
     try:
         with requests.get(feed["url"], timeout=(10, 25), stream=True,
-                          headers={"User-Agent": "MiniJournalMathias/1.0 (RSS reader)"}) as response:
+                          headers={"User-Agent": "MiniJournal/1.0 (RSS reader)"}) as response:
             response.raise_for_status()
             data = bytearray()
             for chunk in response.iter_content(16384):

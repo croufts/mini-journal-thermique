@@ -1,1 +1,1 @@
-"""Mini-journal autonome pour Mathias."""
+"""Mini-journal thermique autonome."""

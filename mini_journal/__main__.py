@@ -2,25 +2,29 @@ import argparse
 import hashlib
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .ai import select, validate
+from .ai import select
 from .feeds import collect
-from .layout import render
+from .layout import render, font
 from .protocol import encode
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Générer le mini-journal de Mathias")
+    parser = argparse.ArgumentParser(description="Générer un mini-journal thermique")
     parser.add_argument("--config", type=Path, default=Path("config.json"))
     parser.add_argument("--output", type=Path, default=Path("out"))
     parser.add_argument("--demo", action="store_true", help="Exemple fictif hors ligne, sans API")
     parser.add_argument("--check-feeds", action="store_true", help="Tester seulement les flux RSS")
+    parser.add_argument("--require-ai", action="store_true", help="Échouer si aucune IA ne fournit une édition valide")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     config = json.loads(args.config.read_text(encoding="utf-8"))
+    if args.require_ai:
+        config["allow_rss_fallback"] = False
     now = datetime.now(timezone.utc)
     day = now.astimezone(ZoneInfo(config["timezone"])).date()
     if args.demo:
@@ -32,14 +36,13 @@ def main():
         if args.check_feeds:
             return
         articles, provider = select(candidates, config)
-        articles = validate(articles, candidates)
-    image, fitted, layout = render(articles, day, config["printer"], provider == "RSS (secours)")
+    image, fitted, layout = render(articles, day, config["printer"], provider == "RSS (secours)",
+        greeting=os.environ.get("JOURNAL_GREETING") or config.get("greeting", "Bonjour."))
     if args.demo:
         # Demonstration is conspicuous in the image and must never reach daily publication.
         from PIL import ImageDraw
-        ImageDraw.Draw(image).text((26, image.height - 48), "EXEMPLE FICTIF", fill=0)
-    wire = encode(image, config["printer"]["feed_lines"], config["printer"]["prefix"],
-                  config["printer"]["legacy_lf_workaround"])
+        ImageDraw.Draw(image).text((26, image.height - 28), "EXEMPLE FICTIF", font=font(17), fill=0, anchor="lt")
+    wire = encode(image, config["printer"]["feed_lines"])
     digest = hashlib.sha256(wire).hexdigest()
     filename = f"journal-{day.isoformat()}-{digest[:16]}.bin"
     args.output.mkdir(parents=True, exist_ok=True)
