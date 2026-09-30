@@ -177,3 +177,15 @@ def test_publication_rejects_demo_and_corruption(tmp_path):
     manifest["demo"] = True
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
     with pytest.raises(ValueError): checked_artifacts(tmp_path)
+
+
+def test_rss_fallback_preserves_long_headlines_as_whole_sentences():
+    candidates = deepcopy(CANDIDATES)
+    for c in candidates:
+        c["title"] = "Une information importante avec un titre complet qui dépasse largement la limite de soixante-cinq caractères"
+    edition = ai.rss_fallback(candidates)
+    for c in candidates:
+        article = edition[c["section"]][0]
+        assert len(article["title"]) <= 65
+        assert article["summary"] == c["title"] + "."
+    assert len(edition["tech"]) == 1
