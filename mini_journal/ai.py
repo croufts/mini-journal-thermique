@@ -79,6 +79,31 @@ def parse_json(content):
     return json.loads(content)
 
 
+def response_content(response, key):
+    """Handle API errors returned inside HTTP 200 responses as well."""
+    data = response.json()
+    if not isinstance(data, dict):
+        raise ValueError("Enveloppe API invalide")
+    if data.get("error"):
+        error = data["error"]
+        message = error.get("message", "Erreur API") if isinstance(error, dict) else str(error)
+        message = str(message).replace(key, "[REDACTED]")
+        message = re.sub(r"(?:sk-or-v1-|Bearer\s+)[A-Za-z0-9_-]+", "[REDACTED]", message)
+        LOG.warning("Erreur API : %s", message[:500].replace("\n", " ").replace("\r", " "))
+        raise ValueError("Erreur signalée dans la réponse API")
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        raise ValueError("Réponse API sans choix")
+    choice = choices[0]
+    if choice.get("finish_reason") == "length":
+        raise ValueError("Réponse tronquée : budget de tokens épuisé")
+    message = choice.get("message") or {}
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("Réponse API sans texte final")
+    return content, data.get("model", "")
+
+
 def rss_fallback(candidates):
     # Deterministic emergency edition: do not claim an editorial AI selection.
     result = {}
@@ -159,18 +184,15 @@ def select(candidates, config):
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
                     json=payload)
                 response.raise_for_status()
-                choice = response.json()["choices"][0]
-                if choice.get("finish_reason") == "length":
-                    raise ValueError("Réponse tronquée")
+                content, resolved_model = response_content(response, key)
                 # Validate structure before re-reading; incomplete grammar in
                 # the draft must reach the review so it can be repaired.
-                articles = validate(parse_json(choice["message"]["content"]), candidates, editorial=False)
+                articles = validate(parse_json(content), candidates, editorial=False)
                 # A separate editorial pass catches grammar beyond the targeted
                 # deterministic guards. Ground it in the same RSS candidates.
                 review_payload = dict(payload)
                 # The free router can switch to a reasoning-required endpoint.
                 # Preserve the resolved free model for the editorial review.
-                resolved_model = response.json().get("model", "")
                 if name == "OpenRouter" and isinstance(resolved_model, str) and resolved_model.endswith(":free"):
                     review_payload["model"] = resolved_model
                 review_payload["messages"] = payload["messages"] + [
@@ -180,10 +202,8 @@ def select(candidates, config):
                 review = requests.post(url, timeout=(10, 90),
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, json=review_payload)
                 review.raise_for_status()
-                reviewed_choice = review.json()["choices"][0]
-                if reviewed_choice.get("finish_reason") == "length":
-                    raise ValueError("Relecture tronquée")
-                reviewed = validate(parse_json(reviewed_choice["message"]["content"]), candidates)
+                review_content, _ = response_content(review, key)
+                reviewed = validate(parse_json(review_content), candidates)
                 if any([a["id"] for a in reviewed[s]] != [a["id"] for a in articles[s]] for s in SECTIONS):
                     raise ValueError("La relecture a modifié la sélection")
                 articles = reviewed
