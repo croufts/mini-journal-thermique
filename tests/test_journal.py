@@ -105,12 +105,23 @@ def test_openrouter_failure_falls_back_to_groq(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter")
     monkeypatch.setenv("GROQ_API_KEY", "test-groq")
     monkeypatch.setattr(ai.time, "sleep", lambda _: None)
-    post = Mock(side_effect=[requests.Timeout(), response({}), response(VALID)])
+    post = Mock(side_effect=[requests.Timeout(), response({}), response(VALID), response(VALID)])
     monkeypatch.setattr(ai.requests, "post", post)
     articles, provider = ai.select(CANDIDATES, CONFIG)
     assert provider == "Groq" and articles == VALID
     assert post.call_args_list[0].args[0].startswith("https://openrouter.ai/")
     assert post.call_args_list[2].args[0].startswith("https://api.groq.com/")
+
+
+def test_editorial_review_output_is_used(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter")
+    corrected = deepcopy(VALID)
+    corrected["world"][0]["title"] = "Une formulation relue et complète"
+    post = Mock(side_effect=[response(VALID), response(corrected)])
+    monkeypatch.setattr(ai.requests, "post", post)
+    articles, provider = ai.select(CANDIDATES, CONFIG)
+    assert articles == corrected and provider == "OpenRouter"
+    assert post.call_count == 2
 
 
 def test_rss_fallback_no_keys_and_paid_model_guard(monkeypatch):
