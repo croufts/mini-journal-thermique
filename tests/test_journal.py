@@ -259,3 +259,24 @@ def test_greeting_is_configurable():
     from mini_journal.layout import compose
     commands, _ = compose(VALID, date(2026, 9, 30), 626, 31, False, "Bonjour Camille.")
     assert commands[0][2] == "Bonjour Camille."
+
+
+@pytest.mark.parametrize("body,reason", [
+    ({"error": {"message": "Provider unavailable"}}, "Erreur signalée"),
+    ({"choices": []}, "sans choix"),
+    ({"choices": [{"message": {"content": None, "reasoning": "unfinished"}}]}, "sans texte final"),
+    ({"choices": [{"finish_reason": "length", "message": {"content": "{"}}]}, "budget de tokens"),
+])
+def test_api_envelope_errors_are_explicit(body, reason):
+    r = Mock()
+    r.json.return_value = body
+    with pytest.raises(ValueError, match=reason):
+        ai.response_content(r, "test-secret")
+
+
+def test_api_error_redacts_credentials(caplog):
+    r = Mock()
+    r.json.return_value = {"error": {"message": "Error test-secret Bearer abc123 sk-or-v1-other"}}
+    with pytest.raises(ValueError):
+        ai.response_content(r, "test-secret")
+    assert "test-secret" not in caplog.text and "abc123" not in caplog.text and "sk-or-v1-other" not in caplog.text
