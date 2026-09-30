@@ -211,3 +211,25 @@ def test_rss_fallback_avoids_entertainment_in_tech():
     candidates = deepcopy(CANDIDATES)
     candidates.append({**candidates[2], "id": "netflix", "title": "Une série Netflix annonce sa saison 3", "published": "2026-09-30T04:00:00+00:00"})
     assert ai.rss_fallback(candidates)["tech"][0]["id"] == "id-tech"
+
+
+def test_reasoning_required_model_can_select_and_review(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    calls = []
+    def reasoning_endpoint(*args, **kwargs):
+        payload = deepcopy(kwargs["json"])
+        calls.append(payload)
+        # Reproduce the provider's actual HTTP 400 condition.
+        if payload.get("reasoning", {}).get("enabled") is False:
+            raise requests.HTTPError("Reasoning is mandatory for this endpoint")
+        r = Mock()
+        r.json.return_value = {"model": "nvidia/nemotron-3-super-120b-a12b:free",
+            "choices": [{"message": {"content": json.dumps(VALID)}, "finish_reason": "stop"}]}
+        return r
+    monkeypatch.setattr(ai.requests, "post", reasoning_endpoint)
+    assert ai.select(CANDIDATES, {**CONFIG, "allow_rss_fallback": False})[1] == "OpenRouter"
+    assert len(calls) == 2
+    assert calls[0]["model"] == "openrouter/free"
+    assert calls[1]["model"] == "nvidia/nemotron-3-super-120b-a12b:free"
+    assert len(calls[0]["messages"]) == 2 and len(calls[1]["messages"]) == 4
