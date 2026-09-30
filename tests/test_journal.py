@@ -57,12 +57,21 @@ def test_layout_fits_long_content_and_keeps_tech():
                   "summary": ("Une information détaillée et importante. " * 6)[:240]}
                  for i in range(1 if s == "tech" else 3)] for s in ("france", "world", "tech")}
     image, fitted, stats = render(long, date(2026, 9, 29), CONFIG["printer"])
-    assert image.size == (626, 2362) and image.mode == "1"
+    assert image.size == (626, stats["used_height"]) and image.mode == "1"
     assert stats["used_height"] <= 2362
     assert len(fitted["tech"]) == 1 and fitted["france"] and fitted["world"]
     assert len(fitted["france"]) + len(fitted["world"]) < 6
     face = font(31)
     assert all(face.getlength(line) <= 574 for line in wrap("A" * 1000, face, 574))
+
+
+def test_short_edition_has_no_unused_page_tail():
+    image, fitted, stats = render(VALID, date(2026, 9, 30), CONFIG["printer"])
+    assert image.height == stats["used_height"] < 2362
+    # The final separator stays intact, followed by only a small cutting margin.
+    ink = image.convert("L").point(lambda p: 255 - p).getbbox()
+    assert 20 <= image.height - ink[3] <= 45
+    assert decode(encode(image)).size == image.size
 
 
 @pytest.mark.parametrize("change", ["second-tech", "unknown-id", "wrong-section", "url", "missing", "long-summary"])
