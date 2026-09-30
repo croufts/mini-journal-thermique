@@ -22,7 +22,6 @@
 #endif
 
 static_assert(BT_PRINT_DENSITY >= 0 && BT_PRINT_DENSITY <= 4, "Density must stay within the conservative configured range");
-static_assert(BT_CHUNK_BYTES > 0 && BT_CHUNK_BYTES <= 512, "Invalid chunk size");
 static_assert(HTTP_POLL_MS >= 60000UL, "HTTP interval must be at least one minute");
 
 JournalClassic printer;
@@ -162,7 +161,7 @@ bool downloadJob(const String &filename, size_t size, const String &hash, int sl
   }
   file.flush(); file.close(); http.end();
   String actualHash = finishHash(ctx);
-  if (!ok || received != size || actualHash != hash || !verifyFile(slotPath(slot, ".bin"), size, hash)) {
+  if (!ok || received != size || actualHash != hash) {
     LittleFS.remove(slotPath(slot, ".bin"));
     Serial.println("[FLASH] Téléchargement incomplet ou SHA-256 incorrect ; ancien cache conservé");
     return false;
@@ -204,7 +203,7 @@ bool pollJournal() {
     Serial.println("[HTTPS] Manifeste invalide ou édition de démonstration"); return false;
   }
   if (date != today()) {
-    Serial.printf("[JOURNAL] Édition %s ignorée (pas aujourd'hui)\n", date.c_str()); return true;
+    Serial.printf("[JOURNAL] Édition %s ignorée (pas aujourd'hui)\n", date.c_str()); return false;
   }
   Serial.printf("[JOURNAL] Manifeste du jour : %s\n", filename.c_str());
   // Refresh the cache even after printing; the NVS guard prevents duplicates
@@ -236,7 +235,6 @@ void wakeWifi() {
 }
 
 // Restore Wi-Fi on failure, leave it off after a confirmed daily print.
-// Restore Wi-Fi on every return, including connection and storage failures.
 struct SuspendWifiForPrint {
   wifi_mode_t previousMode;
   SuspendWifiForPrint() : previousMode(WiFi.getMode()) {
@@ -256,15 +254,12 @@ void printIfReady() {
   String day = today();
   if (refreshBeforePrint || !storageReady || day.isEmpty() || cachedDate != day || prefs.getString("printed", "") >= day ||
       !prefs.getString("pending", "").isEmpty()) return;
-  if (!verifyFile(cachedFile, cachedSize, cachedHash)) {
-    Serial.println("[FLASH] Cache corrompu, téléchargement requis"); cachedDate = ""; return;
-  }
   File job = LittleFS.open(cachedFile, "r");
   if (!job || !JournalClassic::validate(job)) {
     Serial.println("[FLASH] Encodage raster invalide ; aucune impression"); job.close(); return;
   }
   SuspendWifiForPrint wifiPause;
-  if (!connectPrinter()) { Serial.println("[SPP] Imprimante éteinte ou connexion refusée"); job.close(); return; }
+  if (!connectPrinter()) { printer.disconnect(); Serial.println("[SPP] Imprimante éteinte ou connexion refusée"); job.close(); return; }
   if (prefs.putString("pending", day) != day.length()) {
     Serial.println("[NVS] Impossible de mémoriser l'envoi ; impression annulée");
     job.close(); printer.disconnect(); return;
@@ -318,8 +313,7 @@ void command(const String &line) {
     printDensity = line[8] - '0';
     if (storageReady) prefs.putUChar("density", printDensity);
     Serial.printf("[REGLAGE] Densité=%u (0 = réglage natif, mémorisé)\n", printDensity);
-  } else if (line.startsWith("PACE ") || line.startsWith("CHUNK ")) {
-    Serial.println("[REGLAGE] SPP : blocs 512 octets avec confirmation, sans pause fixe");
+
   } else if (line == "TEST") {
     printCalibration();
   } else if (line == "FETCH") {
@@ -376,7 +370,7 @@ void command(const String &line) {
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\nMini-journal Mathias — ESP32 Classic SPP");
+  Serial.println("\nMini-journal thermique — ESP32 Classic SPP");
   if (LittleFS.begin(false) && prefs.begin("journal", false)) {
     storageReady = true; loadCache();
     refreshBeforePrint = prefs.getBool("refresh", false);
@@ -402,6 +396,14 @@ void loop() {
     char c = Serial.read();
     if (c == '\n') { serialLine.trim(); command(serialLine); serialLine = ""; }
     else if (c != '\r' && serialLine.length() < 80) serialLine += c;
+  }
+  String day = today();
+  if (storageReady && !day.isEmpty()) {
+    String pending = prefs.getString("pending", "");
+    if (!pending.isEmpty() && pending < day) {
+      prefs.remove("pending");
+      Serial.println("[IMPRESSION] Ancien envoi incertain clos ; nouvelle edition autorisee");
+    }
   }
   if (scheduledPrint && time(nullptr) >= scheduledPrint) {
     uint32_t target = scheduledPrint;
