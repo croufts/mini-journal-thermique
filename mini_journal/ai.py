@@ -85,14 +85,21 @@ def rss_fallback(candidates):
                        key=lambda c: c["published"], reverse=True)
         result[section] = []
         for c in items:
-            if len(c["title"]) > 65:
-                continue
-            summary = complete_sentences(c["description"], 240) or c["title"].rstrip(".!?") + "."
+            title = c["title"]
+            # Preserve long RSS headlines whole in the body, never truncate them.
+            if len(title) > 65:
+                if len(title.rstrip(".!?")) > 239:
+                    continue
+                summary = title.rstrip(".!?") + "."
+                title = {"france": "Actualité en France", "world": "Actualité internationale",
+                         "tech": "Actualité technologique"}[section]
+            else:
+                summary = complete_sentences(c["description"], 240) or title.rstrip(".!?") + "."
             try:
-                check_complete(c["title"], summary)
+                check_complete(title, summary)
             except ValueError:
                 continue
-            result[section].append({"id": c["id"], "title": c["title"], "summary": summary})
+            result[section].append({"id": c["id"], "title": title, "summary": summary})
             if len(result[section]) == (1 if section == "tech" else 2):
                 break
     return validate(result, candidates)

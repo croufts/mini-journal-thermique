@@ -27,7 +27,7 @@ def parse_feed(data, section, now, max_age_hours):
         published = datetime(*stamp[:6], tzinfo=timezone.utc)
         if not now - timedelta(hours=max_age_hours) <= published <= now + timedelta(minutes=10):
             continue
-        title = clean(entry.get("title", ""), 130)
+        title = clean(entry.get("title", ""), 2000)
         if not title:
             continue
         link = entry.get("link", "")
