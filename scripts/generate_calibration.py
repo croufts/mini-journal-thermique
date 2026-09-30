@@ -1,4 +1,4 @@
-"""Generate the single short ESP32 BLE validation job."""
+"""Generate the single short ESP32 SPP validation job."""
 import struct
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def generate():
     image = Image.new("1", (576, 160), 1)
     draw = ImageDraw.Draw(image)
-    draw.text((20, 8), "ESP32 BLE / 576 points", font=font(27, True), fill=0)
+    draw.text((20, 8), "ESP32 SPP / 576 points", font=font(27, True), fill=0)
     draw.text((20, 45), "Bonjour Mathias. Texte normal.", font=font(26), fill=0)
     draw.text((20, 80), "Texte gras : 0123456789", font=font(28, True), fill=0)
     draw.rectangle((20, 117, 554, 124), fill=0)
