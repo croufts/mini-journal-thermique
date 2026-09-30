@@ -40,10 +40,16 @@ uint8_t printDensity = BT_PRINT_DENSITY;
 const size_t MAX_JOB_BYTES = 200000;
 volatile bool transmitting = false, transportFailed = false;
 volatile uint32_t acknowledgedBytes = 0;
+volatile uint32_t sppHandle = 0;
+volatile bool sppCongested = false;
 
 void sppCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
+  if (event == ESP_SPP_OPEN_EVT) { sppHandle = param->open.handle; sppCongested = false; }
+  if (event == ESP_SPP_CONG_EVT) sppCongested = param->cong.cong;
+  if (event == ESP_SPP_CLOSE_EVT) sppHandle = 0;
   if (!transmitting) return;
   if (event == ESP_SPP_WRITE_EVT) {
+    sppCongested = param->write.cong;
     if (param->write.status == ESP_SPP_SUCCESS) acknowledgedBytes += param->write.len;
     else transportFailed = true;
   } else if (event == ESP_SPP_CLOSE_EVT) {
@@ -266,10 +272,25 @@ void printIfReady() {
   uint8_t chunk[BT_CHUNK_BYTES];
   transportFailed = false; acknowledgedBytes = 0; transmitting = true;
   size_t queued = 0, sent = 0;
-  // Queue at the configured base speed; SPP ACKs are transport receipts, not paper receipts.
+  // Preserve the base pace while respecting SPP congestion and each write completion.
   auto sendChunk = [&](const uint8_t *data, size_t n) {
-    if (transportFailed || !printer.connected() || printer.write(data, n) != n) return false;
+    // Bypass BluetoothSerial's asynchronous queue: its one-second congestion timeout
+    // can silently discard a packet even though write() accepted it.
+    uint32_t started = millis();
+    while (sppCongested) {
+      if (transportFailed || !sppHandle || millis() - started > 15000UL) return false;
+      while (printer.available()) printer.read();
+      delay(2);
+    }
+    if (transportFailed || !sppHandle || !printer.connected()) return false;
+    if (esp_spp_write(sppHandle, n, const_cast<uint8_t *>(data)) != ESP_OK) return false;
     queued += n;
+    started = millis();
+    while (acknowledgedBytes < queued) {
+      if (transportFailed || !sppHandle || millis() - started > 15000UL) return false;
+      while (printer.available()) printer.read();
+      delay(2);
+    }
     delay(BT_CHUNK_DELAY_MS);
     while (printer.available()) printer.read();
     return !transportFailed && printer.connected();
@@ -339,7 +360,8 @@ void command(const String &line) {
       prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str());
   } else if (line.length() == 9 && line.startsWith("DENSITY ") && line[8] >= '0' && line[8] <= '4') {
     printDensity = line[8] - '0';
-    Serial.printf("[REGLAGE] Densité=%u (0 = réglage natif, en RAM)\n", printDensity);
+    if (storageReady) prefs.putUChar("density", printDensity);
+    Serial.printf("[REGLAGE] Densité=%u (0 = réglage natif, mémorisé)\n", printDensity);
   } else if (line == "FETCH") {
     lastPoll = millis() - HTTP_POLL_MS;
   } else if (line == "NET") {
@@ -383,6 +405,8 @@ void setup() {
   Serial.println("\nMini-journal Mathias — ESP32 Classic");
   if (LittleFS.begin(false) && prefs.begin("journal", false)) {
     storageReady = true; loadCache();
+    printDensity = prefs.getUChar("density", BT_PRINT_DENSITY);
+    if (printDensity > 4) printDensity = BT_PRINT_DENSITY;
   } else {
     // Never format silently: that could delete the only cached journal or duplicate guard.
     Serial.println("[FLASH] LittleFS/NVS indisponible. Premier démarrage : téléverser le filesystem vide.");
