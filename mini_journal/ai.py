@@ -153,14 +153,13 @@ def select(candidates, config):
         correction = ""
         for attempt in range(2):
             try:
-                payload = {"model": model, "temperature": .2, "max_tokens": 6000,
+                payload = {"model": model, "temperature": .2, "max_tokens": 12000,
                            "messages": [{"role": "system", "content": SYSTEM},
                                         {"role": "user", "content": json.dumps(candidates, ensure_ascii=False) + correction}],
                            "response_format": {"type": "json_object"}}
                 if name == "OpenRouter" and attempt == 0:
                     payload.update(response_format=response_schema(candidates),
-                                   provider={"require_parameters": True},
-                                   reasoning={"enabled": False})
+                                   provider={"require_parameters": True})
                 response = requests.post(url, timeout=(10, 90),
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
                     json=payload)
@@ -173,12 +172,18 @@ def select(candidates, config):
                 articles = validate(parse_json(choice["message"]["content"]), candidates, editorial=False)
                 # A separate editorial pass catches grammar beyond the targeted
                 # deterministic guards. Ground it in the same RSS candidates.
-                payload["messages"].extend([
+                review_payload = dict(payload)
+                # The free router can switch to a reasoning-required endpoint.
+                # Preserve the resolved free model for the editorial review.
+                resolved_model = response.json().get("model", "")
+                if name == "OpenRouter" and isinstance(resolved_model, str) and resolved_model.endswith(":free"):
+                    review_payload["model"] = resolved_model
+                review_payload["messages"] = payload["messages"] + [
                     {"role": "assistant", "content": json.dumps(articles, ensure_ascii=False)},
                     {"role": "user", "content": "Relis cette édition avant publication. Corrige les titres et résumés mal formés, les mots manquants, les abréviations erronées et les négations incomplètes. Reformule avec moins de mots au lieu de couper. Garde exactement les mêmes identifiants, sections et faits attestés par les candidats RSS. Rends le JSON complet corrigé."},
-                ])
+                ]
                 review = requests.post(url, timeout=(10, 90),
-                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, json=payload)
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, json=review_payload)
                 review.raise_for_status()
                 reviewed_choice = review.json()["choices"][0]
                 if reviewed_choice.get("finish_reason") == "length":
@@ -190,10 +195,17 @@ def select(candidates, config):
                 LOG.info("Sélection et relecture validées via %s", name)
                 return articles, name
             except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
-                # Never log response bodies or headers: they can echo credentials or untrusted text.
+                # Log only a bounded, credential-redacted provider error message.
                 LOG.warning("%s tentative %d échouée (%s)", name, attempt + 1, type(exc).__name__)
                 if isinstance(exc, requests.HTTPError) and exc.response is not None:
                     LOG.warning("Statut HTTP : %d", exc.response.status_code)
+                    try:
+                        error = exc.response.json().get("error", {})
+                        message = str(error.get("message", "")).replace(key, "[REDACTED]")
+                        message = re.sub(r"(?:sk-or-v1-|Bearer\s+)[A-Za-z0-9_-]+", "[REDACTED]", message)
+                        LOG.warning("Motif API : %s", message[:500].replace("\n", " ").replace("\r", " "))
+                    except (ValueError, AttributeError, TypeError):
+                        pass
                 elif isinstance(exc, ValueError) and not isinstance(exc, json.JSONDecodeError):
                     # Only our fixed validation messages; never echo provider content.
                     LOG.warning("Validation : %s", str(exc))
