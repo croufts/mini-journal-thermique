@@ -20,6 +20,8 @@
 | Dépendances réinstallées lors de chaque rattrapage inutile | Vérification de la date avant installation des dépendances |
 | Polices rechargées pour chaque bloc et tentative de mise en page | Petit cache des polices par taille |
 
+| Actions GitHub sous Node 20 déprécié, image Ubuntu changeante | Actions actualisées et runner Ubuntu 24.04 explicite |
+
 ## Mécanismes conservés volontairement
 
 - Sélection puis relecture IA : la première sortie a effectivement présenté des titres coupés. Il ne s’agit pas de deux validations identiques.
