@@ -49,9 +49,24 @@ def validate(value, candidates):
             title, summary = clean(article["title"], 180), clean(article["summary"], 600)
             if len(title) > 65 or len(summary) > 240 or re.search(r"https?://|www\.", title + summary):
                 raise ValueError("Article trop long ou URL affichée")
+            check_complete(title, summary)
             result[section].append({"id": identity, "title": title, "summary": summary})
             used.add(identity)
     return result
+
+
+def check_complete(title, summary):
+    # Conservative checks for the actual malformed outputs observed in print.
+    # These do not claim to provide a complete French grammar checker.
+    for text in (title, summary):
+        ending = text.lower().rstrip(" .!?;:…»\"")
+        if re.search(r"(?:\b(?:le|la|les|un|une|du|des|de|à|au|aux|dans|pour|avec|sur|et|ou)|d[’'](?:un|une))$", ending):
+            raise ValueError("Texte grammaticalement incomplet : mot de liaison final")
+        if re.search(r"\bne\b|\bn[’']", text.lower()) and not re.search(
+                r"\b(?:pas|plus|jamais|rien|personne|aucun|aucune|guère|que|ni|cesser|cesse)\b|qu[’']", text.lower()):
+            raise ValueError("Texte grammaticalement incomplet : négation")
+    if not summary.endswith((".", "!", "?", "»")):
+        raise ValueError("Résumé sans fin de phrase")
 
 
 def parse_json(content):
@@ -67,10 +82,25 @@ def rss_fallback(candidates):
     for section in SECTIONS:
         items = sorted((c for c in candidates if c["section"] == section),
                        key=lambda c: c["published"], reverse=True)
-        result[section] = [{"id": c["id"], "title": shorten(c["title"], 65),
-                            "summary": shorten(c["description"] or c["title"], 240)}
-                           for c in items[:1 if section == "tech" else 2]]
+        result[section] = []
+        for c in items:
+            if len(c["title"]) > 65:
+                continue
+            summary = complete_sentences(c["description"], 240) or c["title"].rstrip(".!?") + "."
+            try:
+                check_complete(c["title"], summary)
+            except ValueError:
+                continue
+            result[section].append({"id": c["id"], "title": c["title"], "summary": summary})
+            if len(result[section]) == (1 if section == "tech" else 2):
+                break
     return validate(result, candidates)
+
+
+def complete_sentences(value, maximum):
+    """Keep whole sentences; never cut off a negation to fit the page."""
+    endings = [m.end() for m in re.finditer(r"[.!?](?=\s|$)", value) if m.end() <= maximum]
+    return value[:endings[-1]].strip() if endings else ""
 
 
 def shorten(value, maximum):
@@ -109,11 +139,12 @@ def select(candidates, config):
         key = os.environ.get(key_name, "").strip()
         if not key:
             continue
+        correction = ""
         for attempt in range(2):
             try:
                 payload = {"model": model, "temperature": .2, "max_tokens": 6000,
                            "messages": [{"role": "system", "content": SYSTEM},
-                                        {"role": "user", "content": json.dumps(candidates, ensure_ascii=False)}],
+                                        {"role": "user", "content": json.dumps(candidates, ensure_ascii=False) + correction}],
                            "response_format": {"type": "json_object"}}
                 if name == "OpenRouter":
                     payload.update(response_format=response_schema(candidates),
@@ -137,6 +168,7 @@ def select(candidates, config):
                 elif isinstance(exc, ValueError) and not isinstance(exc, json.JSONDecodeError):
                     # Only our fixed validation messages; never echo provider content.
                     LOG.warning("Validation : %s", str(exc))
+                    correction = "\nLa réponse précédente a été refusée : " + str(exc) + ". Reformule des titres complets et des résumés terminés, dans les limites de longueur."
                 if attempt == 0:
                     time.sleep(3)
     if config.get("allow_rss_fallback", False):

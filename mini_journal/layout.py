@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .ai import shorten
+from .ai import complete_sentences
 from .feeds import SECTIONS
 
 FONTS = Path(__file__).resolve().parents[1] / "assets" / "fonts"
@@ -98,7 +98,9 @@ def render(articles, day, printer, emergency=False):
         for section in SECTIONS:
             article = fitted[section][0]
             if len(article["summary"]) > 70:
-                article["summary"] = shorten(article["summary"], max(70, len(article["summary"]) - 35))
-                changed = True
+                shorter = complete_sentences(article["summary"], max(70, len(article["summary"]) - 35))
+                if shorter and shorter != article["summary"]:
+                    article["summary"] = shorter
+                    changed = True
         if not changed:
             raise ValueError("Le contenu ne tient pas dans le format demandé")
