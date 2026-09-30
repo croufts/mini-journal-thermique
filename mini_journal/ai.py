@@ -154,7 +154,7 @@ def select(candidates, config):
                            "messages": [{"role": "system", "content": SYSTEM},
                                         {"role": "user", "content": json.dumps(candidates, ensure_ascii=False) + correction}],
                            "response_format": {"type": "json_object"}}
-                if name == "OpenRouter":
+                if name == "OpenRouter" and attempt == 0:
                     payload.update(response_format=response_schema(candidates),
                                    provider={"require_parameters": True},
                                    reasoning={"enabled": False})
