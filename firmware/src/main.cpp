@@ -252,6 +252,13 @@ struct SuspendWifiForPrint {
 
 void printIfReady() {
   String day = today();
+  if (storageReady && !day.isEmpty()) {
+    String pending = prefs.getString("pending", "");
+    if (!pending.isEmpty() && pending < day) {
+      prefs.remove("pending");
+      Serial.println("[IMPRESSION] Ancien envoi incertain clos ; nouvelle edition autorisee");
+    }
+  }
   if (refreshBeforePrint || !storageReady || day.isEmpty() || cachedDate != day || prefs.getString("printed", "") >= day ||
       !prefs.getString("pending", "").isEmpty()) return;
   File job = LittleFS.open(cachedFile, "r");
@@ -396,14 +403,6 @@ void loop() {
     char c = Serial.read();
     if (c == '\n') { serialLine.trim(); command(serialLine); serialLine = ""; }
     else if (c != '\r' && serialLine.length() < 80) serialLine += c;
-  }
-  String day = today();
-  if (storageReady && !day.isEmpty()) {
-    String pending = prefs.getString("pending", "");
-    if (!pending.isEmpty() && pending < day) {
-      prefs.remove("pending");
-      Serial.println("[IMPRESSION] Ancien envoi incertain clos ; nouvelle edition autorisee");
-    }
   }
   if (scheduledPrint && time(nullptr) >= scheduledPrint) {
     uint32_t target = scheduledPrint;
