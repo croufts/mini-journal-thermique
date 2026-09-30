@@ -5,11 +5,11 @@
 #define WIFI_PASSWORD "TON_MOT_DE_PASSE"
 #define JOURNAL_BASE_URL "https://raw.githubusercontent.com/croufts/mini-journal-thermique/refs/heads/journal/"
 
-// Exact Bluetooth LE MAC, read with the serial SCAN command.
+// Exact Bluetooth Classic MAC, read with the serial SCAN command.
 #define PRINTER_MAC "AA:BB:CC:DD:EE:FF"
 // Leave MAC empty to discover/connect by exact name (slower).
 #define PRINTER_NAME "M02 Pro"
-// Legacy Classic options below are ignored by the BLE firmware.
+// Classic SPP security settings. Channel is discovered automatically.
 #define BT_REQUIRE_PIN false
 #define BT_PIN "0000"
 #define BT_CHANNEL 1
