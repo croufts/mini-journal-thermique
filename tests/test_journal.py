@@ -189,3 +189,19 @@ def test_rss_fallback_preserves_long_headlines_as_whole_sentences():
         assert len(article["title"]) <= 65
         assert article["summary"] == c["title"] + "."
     assert len(edition["tech"]) == 1
+
+
+def test_openrouter_retries_with_compatible_json_mode(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setattr(ai.time, "sleep", lambda _: None)
+    def response(value):
+        r = Mock()
+        r.json.return_value = {"choices": [{"message": {"content": json.dumps(value)}, "finish_reason": "stop"}]}
+        return r
+    post = Mock(side_effect=[requests.Timeout(), response(VALID), response(VALID)])
+    monkeypatch.setattr(ai.requests, "post", post)
+    assert ai.select(CANDIDATES, CONFIG)[1] == "OpenRouter"
+    assert post.call_args_list[0].kwargs["json"]["response_format"]["type"] == "json_schema"
+    assert post.call_args_list[1].kwargs["json"]["response_format"]["type"] == "json_object"
+    assert "reasoning" not in post.call_args_list[1].kwargs["json"]
