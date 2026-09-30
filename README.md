@@ -37,7 +37,7 @@ ESP32 alimenté en permanence
   → dès la connexion : envoi du journal, garde anti-doublon en mémoire permanente
 ```
 
-L’allumage de l’imprimante entraîne une impression après sa détection, habituellement dans la minute, en tenant compte de la durée de connexion. L’envoi utilise la vitesse initiale demandée par Mathias : blocs de 128 octets et pause de 25 ms (environ 40 secondes pour le fichier du journal, hors connexion et attente finale). Le firmware envoie directement par l’API SPP de l’ESP32, attend la fin de chaque écriture et respecte les événements de congestion, avec une attente bornée à quinze secondes. Il évite ainsi la file asynchrone de BluetoothSerial et son délai interne d’une seconde susceptible d’abandonner des paquets. La pause de base reste de 25 ms ; le débit réel tient compte de la disponibilité de la liaison. Un débit plus lent avait été essayé ; la qualité physique doit être contrôlée avec une imprimante suffisamment chargée.
+L’allumage de l’imprimante entraîne une impression après sa détection, habituellement dans la minute, en tenant compte de la durée de connexion. L’envoi utilise la cadence retenue après calibration : blocs de 128 octets et pause de 10 ms (environ 15 secondes de pauses cumulées pour le journal, auxquelles s’ajoutent connexion, confirmations SPP et attente finale). Le firmware envoie directement par l’API SPP de l’ESP32, attend la fin de chaque écriture et respecte les événements de congestion, avec une attente bornée à quinze secondes. Il évite ainsi la file asynchrone de BluetoothSerial et son délai interne d’une seconde susceptible d’abandonner des paquets. La pause choisie est de 10 ms ; le débit réel tient compte de la disponibilité de la liaison. Un débit plus lent avait été essayé ; la qualité physique doit être contrôlée avec une imprimante suffisamment chargée.
 
 ## Gratuité
 
@@ -263,4 +263,11 @@ La densité native est conservée par défaut (`BT_PRINT_DENSITY 0`). Une comman
 
 Référence du contrôle de congestion et des confirmations : [API SPP Espressif](https://docs.espressif.com/projects/esp-idf/en/v4.4.5/esp32/api-reference/bluetooth/esp_spp.html).
 
-Sur l’ESP32 de Mathias, `DENSITY 4` est le réglage visuellement validé le 30 septembre. Il demeure actif après redémarrage grâce à NVS. La cadence de 128 octets / 25 ms est conservée ; lorsque la liaison est saturée, le programme attend au lieu de perdre des blocs. Le niveau natif 2 visible sur l’autotest restait trop pâle pour son journal, bien que l’autotest lui-même fût net.
+Sur l’ESP32 de Mathias, `DENSITY 4` est le réglage visuellement validé le 30 septembre. Il demeure actif après redémarrage grâce à NVS. La cadence de 128 octets / 10 ms est conservée ; lorsque la liaison est saturée, le programme attend au lieu de perdre des blocs. Le niveau natif 2 visible sur l’autotest restait trop pâle pour son journal, bien que l’autotest lui-même fût net.
+
+
+### Calibration de la cadence, 30 septembre 2026
+
+Le ticket court `TEST` compare trois motifs identiques à 624 points et densité 4 : D avec pause de 25 ms, E avec 10 ms, F sans pause ajoutée. Mathias a jugé les blocs E et F assez bons ; 10 ms est retenu. La commande `PACE 10` mémorise cette pause en NVS, comme `DENSITY 4` pour la chauffe. `STATUS` affiche ces deux réglages. Le journal garde son format de 626 points ; le test précédent à 624 points et densité 6 n’avait pas supprimé les bandes claires.
+
+Le Wi-Fi est suspendu pendant la connexion et l’envoi Bluetooth, puis rétabli sur tous les chemins de sortie. Le test D/E/F a confirmé 39858/39858 octets dans ces conditions. Les confirmations SPP et la gestion de congestion restent actives à toutes les cadences. La qualité du journal entier à 10 ms reste à contrôler au prochain tirage ; la comparaison validée porte sur le petit ticket. `TEST` conserve le cache et les gardes anti-doublon, et rétablit la cadence choisie après sa comparaison.
