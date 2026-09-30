@@ -25,7 +25,7 @@ GitHub Actions, chaque matin
   → flux RSS récents en français, France / Monde / Tech
   → OpenRouter gratuit, puis Groq gratuit si configuré
   → validation des identifiants, des sections et du JSON
-  → mise en page noir et blanc 626 × 2362 pixels
+  → mise en page noir et blanc 626 pixels de large, hauteur adaptée au contenu (2362 pixels maximum)
   → encodage raster M02 Pro + manifeste SHA-256
   → publication de la branche journal
 
@@ -185,7 +185,7 @@ Le partitionnement prévu est **4 Mo, application 3 Mo, LittleFS environ 1 Mo**,
 1. Générer une édition réelle via **Run workflow** et vérifier `manifest.json` dans le navigateur.
 2. Laisser la M02 Pro **éteinte**. Démarrer l’ESP32 et ouvrir le moniteur série. Le journal doit être téléchargé et vérifié en flash.
 3. Envoyer **STATUS** : date du jour, cache du jour, Wi-Fi OK, aucune date imprimée.
-4. Allumer la M02 Pro. Observer la connexion et l’impression ; vérifier les accents, la largeur, les séparateurs, une seule info Tech et une longueur proche de 20 cm.
+4. Allumer la M02 Pro. Observer la connexion et l’impression ; vérifier les accents, la largeur, les séparateurs, une seule info Tech et une longueur adaptée au contenu, au maximum environ 20 cm.
 5. Éteindre/rallumer l’imprimante : aucune deuxième impression ce jour-là. Redémarrer également l’ESP32 avec Internet disponible : la garde doit survivre.
 6. Alimenter l’ESP32 avec un chargeur USB autonome et éteindre le PC. Le lendemain, GitHub doit produire une nouvelle édition et l’allumage de l’imprimante doit déclencher celle du jour.
 
@@ -212,7 +212,7 @@ Ne pas utiliser `RETRY` avant d’avoir vérifié ce qui est sorti : un ticket p
 
 ## 8. Encodage, largeur et diagnostic
 
-Le générateur conserve un canevas noir et blanc de **626 × 2362 pixels**. Le binaire publié utilise des rangées de 79 octets, avec six bits blancs de bourrage. Le firmware BLE rééchantillonne horizontalement les 626 points utiles vers **576 points** et envoie des rangées de 72 octets ; il ne coupe pas les caractères à droite. La hauteur ne change pas, soit environ 20 cm à 300 dpi. Le cache original conserve son SHA-256. Les petits tickets natifs de 576 points sont également acceptés.
+Le générateur conserve un canevas noir et blanc de **626 pixels de large, hauteur adaptée au contenu (2362 pixels maximum)**. Le binaire publié utilise des rangées de 79 octets, avec six bits blancs de bourrage. Le firmware BLE rééchantillonne horizontalement les 626 points utiles vers **576 points** et envoie des rangées de 72 octets ; il ne coupe pas les caractères à droite. La hauteur suit le contenu, avec une petite marge après le séparateur final ; 2362 pixels (environ 20 cm à 300 dpi) restent la limite maximale. Le cache original conserve son SHA-256. Les petits tickets natifs de 576 points sont également acceptés.
 
 Le firmware vérifie la structure entière du job avant de commencer : en-tête ESC/POS, largeur admise, bandes de 1 à 255 lignes, hauteur totale jusqu’à 2362 et avance finale valide. Il applique l’alignement gauche et la chauffe après `ESC @`. Le protocole raster est dérivé du chemin M02 de [phomemo-tools](https://github.com/vivier/phomemo-tools) ; aucun pilote CUPS n’est installé sur l’ESP32. La liaison BLE s’appuie sur le service FF00 observé sur le matériel et le mécanisme de crédit décrit par [phomo](https://github.com/danielgormly/phomo/blob/main/Sources/phomo/BLE.swift).
 
