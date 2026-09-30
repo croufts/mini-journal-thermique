@@ -205,3 +205,9 @@ def test_openrouter_retries_with_compatible_json_mode(monkeypatch):
     assert post.call_args_list[0].kwargs["json"]["response_format"]["type"] == "json_schema"
     assert post.call_args_list[1].kwargs["json"]["response_format"]["type"] == "json_object"
     assert "reasoning" not in post.call_args_list[1].kwargs["json"]
+
+
+def test_rss_fallback_avoids_entertainment_in_tech():
+    candidates = deepcopy(CANDIDATES)
+    candidates.append({**candidates[2], "id": "netflix", "title": "Une série Netflix annonce sa saison 3", "published": "2026-09-30T04:00:00+00:00"})
+    assert ai.rss_fallback(candidates)["tech"][0]["id"] == "id-tech"
