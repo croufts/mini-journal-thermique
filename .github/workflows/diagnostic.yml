@@ -1,6 +1,12 @@
 name: Diagnostic OpenRouter
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Comparaison simple ou chaine complete avec relecture'
+        type: choice
+        options: [production, baseline]
+        default: production
 permissions:
   contents: read
 jobs:
@@ -16,6 +22,7 @@ jobs:
       - name: Comparer les requetes sans publier ni imprimer
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DIAGNOSTIC_MODE: ${{ inputs.mode }}
         run: |
           python -u - <<'PY'
           import json, os, re
@@ -39,7 +46,7 @@ jobs:
                     ("journal_strict", dict(base, response_format=response_schema(candidates),
                       provider={"require_parameters": True}, reasoning={"enabled": False})),
                     ("journal_json", dict(base, response_format={"type": "json_object"}))]
-          for label, payload in probes:
+          for label, payload in (probes if os.environ.get("DIAGNOSTIC_MODE") == "baseline" else []):
               print("PROBE", label, flush=True)
               try:
                   r = requests.post("https://openrouter.ai/api/v1/chat/completions", json=payload,
@@ -66,4 +73,33 @@ jobs:
                       print("VALIDATION", type(exc).__name__, safe(str(exc)), flush=True)
               except requests.RequestException as exc:
                   print("NETWORK", type(exc).__name__, flush=True)
+          if os.environ.get("DIAGNOSTIC_MODE") != "baseline":
+              import logging
+              from mini_journal.ai import select
+              logging.basicConfig(level=logging.INFO)
+              original_post = requests.post
+              def observed_post(*args, **kwargs):
+                  response = original_post(*args, **kwargs)
+                  print("PRODUCTION HTTP", response.status_code, flush=True)
+                  try:
+                      data = response.json()
+                      if "error" in data:
+                          print("PRODUCTION ERROR", safe(data["error"]), flush=True)
+                      else:
+                          choice = data["choices"][0]
+                          print("PRODUCTION MODEL", safe(data.get("model")), "FINISH", choice.get("finish_reason"), flush=True)
+                          content = choice["message"].get("content")
+                          if isinstance(content, str):
+                              try:
+                                  parsed = parse_json(content)
+                                  print("PRODUCTION TITLES", safe([a["title"] for section in parsed.values() for a in section]), flush=True)
+                              except (ValueError, TypeError, KeyError):
+                                  print("PRODUCTION NON_JSON", safe(content), flush=True)
+                  except (ValueError, KeyError, IndexError):
+                      print("PRODUCTION response not in expected envelope", flush=True)
+                  return response
+              requests.post = observed_post
+              config["allow_rss_fallback"] = False
+              articles, provider = select(candidates, config)
+              print("PRODUCTION SUCCESS", provider, sum(len(a) for a in articles.values()), flush=True)
           PY
