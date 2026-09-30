@@ -17,7 +17,7 @@
 #define HTTP_POLL_MS 300000UL
 #define BT_POLL_MS 20000UL
 #define BT_CHUNK_BYTES 128
-#define BT_CHUNK_DELAY_MS 25
+#define BT_CHUNK_DELAY_MS 10
 #define BT_FINISH_DELAY_MS 5000UL
 
 // 0: native density. DENSITY 1..4 is available for controlled serial calibration.
