@@ -29,6 +29,7 @@ JournalBle printer;
 Preferences prefs;
 bool storageReady = false;
 bool btReady = false;
+bool refreshBeforePrint = false;
 int activeSlot = 0;
 String cachedDate, cachedHash, cachedFile;
 size_t cachedSize = 0;
@@ -203,7 +204,9 @@ bool pollJournal() {
   if (date != today()) {
     Serial.printf("[JOURNAL] Édition %s ignorée (pas aujourd'hui)\n", date.c_str()); return true;
   }
-  if (prefs.getString("printed", "") >= date) return true;
+  Serial.printf("[JOURNAL] Manifeste du jour : %s\n", filename.c_str());
+  // Refresh the cache even after printing; the NVS guard prevents duplicates
+  // independently. Otherwise an explicit reprint uses an obsolete edition.
   if (date == cachedDate && hash == cachedHash) return true;
   int newSlot = 1 - activeSlot;
   if (!downloadJob(filename, size, hash, newSlot)) return false;
@@ -240,7 +243,7 @@ struct SuspendWifiForPrint {
 
 void printIfReady() {
   String day = today();
-  if (!storageReady || day.isEmpty() || cachedDate != day || prefs.getString("printed", "") >= day ||
+  if (refreshBeforePrint || !storageReady || day.isEmpty() || cachedDate != day || prefs.getString("printed", "") >= day ||
       !prefs.getString("pending", "").isEmpty()) return;
   if (!verifyFile(cachedFile, cachedSize, cachedHash)) {
     Serial.println("[FLASH] Cache corrompu, téléchargement requis"); cachedDate = ""; return;
@@ -259,7 +262,7 @@ void printIfReady() {
   job.close();
   if (ok && prefs.putString("printed", day) == day.length()) {
     prefs.remove("pending");
-    Serial.printf("[IMPRESSION] Journal %s transmis, fins de bandes reçues, anti-doublon enregistré\n", day.c_str());
+    Serial.printf("[IMPRESSION] Journal %s transmis, fin du raster continu reçue, anti-doublon enregistré\n", day.c_str());
   } else Serial.println("[IMPRESSION] Envoi incertain. Pas de nouvel essai automatique. Vérifier le papier puis RETRY.");
   printer.disconnect();
 }
@@ -291,9 +294,10 @@ void printCalibration() {
 
 void command(const String &line) {
   if (line == "STATUS") {
-    Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s densite=%u transport=BLE largeur=576\n",
+    Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s densite=%u transport=BLE largeur=576 hash=%s actualisation=%s\n",
       today().c_str(), cachedDate.c_str(), WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne",
-      prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str(), printDensity);
+      prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str(), printDensity,
+      cachedHash.substring(0, 16).c_str(), refreshBeforePrint ? "requise" : "OK");
   } else if (line.length() == 9 && line.startsWith("DENSITY ") && line[8] >= '0' && line[8] <= '4') {
     printDensity = line[8] - '0';
     if (storageReady) prefs.putUChar("density", printDensity);
@@ -324,9 +328,14 @@ void command(const String &line) {
     lastBt = millis() - BT_POLL_MS;
     Serial.println("[IMPRESSION] Blocage incertain levé. Une impression partielle peut se répéter.");
   } else if (line == "REPRINT") {
-    if (storageReady) { prefs.remove("printed"); prefs.remove("pending"); }
+    if (!storageReady || prefs.putBool("refresh", true) != 1) {
+      Serial.println("[NVS] Réimpression annulée : actualisation non mémorisée"); return;
+    }
+    prefs.remove("printed"); prefs.remove("pending");
+    refreshBeforePrint = true;
+    lastPoll = millis() - HTTP_POLL_MS;
     lastBt = millis() - BT_POLL_MS;
-    Serial.println("[IMPRESSION] Réimpression explicitement demandée");
+    Serial.println("[IMPRESSION] Réimpression demandée, actualisation Internet obligatoire avant l'envoi");
   } else if (line == "SCAN" && btReady) {
     printer.scan();
   } else {
@@ -340,6 +349,7 @@ void setup() {
   Serial.println("\nMini-journal Mathias — ESP32 BLE");
   if (LittleFS.begin(false) && prefs.begin("journal", false)) {
     storageReady = true; loadCache();
+    refreshBeforePrint = prefs.getBool("refresh", false);
     printDensity = prefs.getUChar("density", BT_PRINT_DENSITY);
     if (printDensity > 4) printDensity = BT_PRINT_DENSITY;
   } else {
@@ -369,6 +379,10 @@ void loop() {
     // Release the BLE stack during TLS: both stacks otherwise compete for heap and radio time.
     if (btReady) { printer.end(); btReady = false; }
     bool success = pollJournal();
+    if (success) {
+      prefs.remove("refresh");
+      refreshBeforePrint = prefs.getBool("refresh", false);
+    }
     btReady = printer.begin();
     lastPoll = millis();
     if (!success) lastPoll -= HTTP_POLL_MS - 60000UL; // Retry network failures after one minute.
