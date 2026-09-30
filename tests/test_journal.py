@@ -37,13 +37,13 @@ def test_wire_round_trip_polarity_padding_and_block_boundaries(height):
     assert wire[13 + 78] == 0x40  # Last actual dot black; six padding dots white.
 
 
-def test_white_black_and_legacy_lf():
+def test_white_black_and_lf_byte_preserved():
     white = Image.new("1", (626, 1), 1)
     assert encode(white)[13:92] == bytes(79)
     white.putpixel((4, 0), 0)
     white.putpixel((6, 0), 0)
     assert encode(white)[13] == 0x0a
-    assert encode(white, prefix=True, legacy_lf_workaround=True)[17] == 0x14
+    assert decode(encode(white)).tobytes() == white.tobytes()
     assert decode(encode(Image.new("1", (626, 1), 0))).getpixel((625, 0)) == 0
 
 
@@ -233,3 +233,29 @@ def test_reasoning_required_model_can_select_and_review(monkeypatch):
     assert calls[0]["model"] == "openrouter/free"
     assert calls[1]["model"] == "nvidia/nemotron-3-super-120b-a12b:free"
     assert len(calls[0]["messages"]) == 2 and len(calls[1]["messages"]) == 4
+
+
+def test_long_draft_reaches_review_without_truncation(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    draft = deepcopy(VALID)
+    draft["tech"][0]["title"] = "Un titre volontairement long qui doit être reformulé par la relecture sans couper le dernier mot"
+    post = Mock(side_effect=[response(draft), response(VALID)])
+    monkeypatch.setattr(ai.requests, "post", post)
+    assert ai.select(CANDIDATES, CONFIG)[0] == VALID
+    reviewed_input = json.loads(post.call_args_list[1].kwargs["json"]["messages"][2]["content"])
+    assert reviewed_input["tech"][0]["title"] == draft["tech"][0]["title"]
+    with pytest.raises(ValueError):
+        ai.validate(draft, CANDIDATES)
+
+
+def test_decoder_rejects_short_header_and_excess_feed():
+    with pytest.raises(ValueError):
+        decode(b"\x1b\x40\x1b\x61\x01\x1d\x76\x30\x00")
+    with pytest.raises(ValueError):
+        decode(encode(Image.new("1", (626, 1), 1))[:-1] + b"\xff")
+
+
+def test_greeting_is_configurable():
+    from mini_journal.layout import compose
+    commands, _ = compose(VALID, date(2026, 9, 30), 626, 31, False, "Bonjour Camille.")
+    assert commands[0][2] == "Bonjour Camille."
