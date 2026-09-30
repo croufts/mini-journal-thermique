@@ -251,3 +251,8 @@ Le cache conserve son format historique en bandes, mais le firmware transmet une
 Le cache est actualisé lorsqu’une nouvelle empreinte est publiée, même si le journal du jour a déjà été imprimé. Le verrou quotidien reste indépendant et interdit toute réimpression automatique. La commande REPRINT impose une récupération réussie du manifeste avant l’envoi ; cette attente est mémorisée en NVS et survit au redémarrage. STATUS affiche l’empreinte du cache et si une actualisation est requise.
 
 Mathias a confirmé que le journal envoyé en un raster continu est lisible et ne présente plus de coupures ni de traces blanches. Le premier essai continu utilisait encore l’ancien cache, car le firmware précédent ignorait les éditions corrigées une fois la date imprimée. Ce défaut de cache est corrigé dans cette version.
+
+
+Un essai ponctuel autonome peut être armé via `PRINTAT <timestamp Unix UTC>` (dans les prochaines 24 heures). Il est mémorisé en NVS, déclenche une actualisation puis une réimpression à l’heure prévue et se désarme avant l’envoi. Un essai manqué de plus d’une heure est annulé pour éviter une répétition le lendemain. `STATUS` affiche son échéance. Le rythme quotidien habituel reste inchangé.
+
+Si les modèles gratuits sont indisponibles, le secours RSS utilise un titre de rubrique court et conserve le titre RSS entier dans le corps lorsqu’il dépasse 65 caractères. Aucune phrase n’est coupée pour tenir dans le ticket.
