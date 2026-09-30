@@ -19,8 +19,9 @@
 | Décodeur acceptant une avance papier invalide et erreur non maîtrisée sur un en-tête tronqué | Rejet explicite de ces fichiers |
 | Dépendances réinstallées lors de chaque rattrapage inutile | Vérification de la date avant installation des dépendances |
 | Polices rechargées pour chaque bloc et tentative de mise en page | Petit cache des polices par taille |
-
 | Actions GitHub sous Node 20 déprécié, image Ubuntu changeante | Actions actualisées et runner Ubuntu 24.04 explicite |
+
+| Erreurs API contenues dans une réponse HTTP 200 masquées par un KeyError | Lecture explicite de l’enveloppe et message borné sans clé ; contenu vide distingué du JSON invalide |
 
 ## Mécanismes conservés volontairement
 
