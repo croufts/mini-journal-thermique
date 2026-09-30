@@ -15,7 +15,7 @@
 #endif
 #include "tls_roots.h"
 #include "calibration_ticket.h"
-#include "ble_transport.h"
+#include "classic_transport.h"
 
 #ifndef BT_PRINT_DENSITY
 #define BT_PRINT_DENSITY 0
@@ -25,11 +25,12 @@ static_assert(BT_PRINT_DENSITY >= 0 && BT_PRINT_DENSITY <= 4, "Density must stay
 static_assert(BT_CHUNK_BYTES > 0 && BT_CHUNK_BYTES <= 512, "Invalid chunk size");
 static_assert(HTTP_POLL_MS >= 60000UL, "HTTP interval must be at least one minute");
 
-JournalBle printer;
+JournalClassic printer;
 Preferences prefs;
 bool storageReady = false;
 bool btReady = false;
 bool refreshBeforePrint = false;
+String wifiIdleDay;
 uint32_t scheduledPrint = 0;
 int activeSlot = 0;
 String cachedDate, cachedHash, cachedFile;
@@ -208,7 +209,7 @@ bool pollJournal() {
   Serial.printf("[JOURNAL] Manifeste du jour : %s\n", filename.c_str());
   // Refresh the cache even after printing; the NVS guard prevents duplicates
   // independently. Otherwise an explicit reprint uses an obsolete edition.
-  if (date == cachedDate && hash == cachedHash) return true;
+  if (date == cachedDate && hash == cachedHash && !refreshBeforePrint) return true;
   int newSlot = 1 - activeSlot;
   if (!downloadJob(filename, size, hash, newSlot)) return false;
   File meta = LittleFS.open(slotPath(newSlot, ".json"), "w");
@@ -223,11 +224,18 @@ bool pollJournal() {
 
 bool connectPrinter() {
   if (!btReady) return false;
-  Serial.println("[BLE] Recherche/connexion M02 Pro...");
+  Serial.println("[SPP] Recherche/connexion M02 Pro...");
   return printer.connect(PRINTER_MAC, PRINTER_NAME);
 }
 
-// Keep the radio in the same state as the visually accepted calibration.
+void wakeWifi() {
+  wifiIdleDay = "";
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+}
+
+// Restore Wi-Fi on failure, leave it off after a confirmed daily print.
 // Restore Wi-Fi on every return, including connection and storage failures.
 struct SuspendWifiForPrint {
   wifi_mode_t previousMode;
@@ -237,8 +245,10 @@ struct SuspendWifiForPrint {
     Serial.printf("[BT] Wi-Fi suspendu=%s RAM=%u\n", stopped ? "oui" : "echec", unsigned(ESP.getFreeHeap()));
   }
   ~SuspendWifiForPrint() {
-    WiFi.mode(previousMode);
-    if (previousMode & WIFI_STA) WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    if (wifiIdleDay.isEmpty()) {
+      WiFi.mode(previousMode);
+      if (previousMode & WIFI_STA) WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    }
   }
 };
 
@@ -250,11 +260,11 @@ void printIfReady() {
     Serial.println("[FLASH] Cache corrompu, téléchargement requis"); cachedDate = ""; return;
   }
   File job = LittleFS.open(cachedFile, "r");
-  if (!job || !JournalBle::validate(job)) {
+  if (!job || !JournalClassic::validate(job)) {
     Serial.println("[FLASH] Encodage raster invalide ; aucune impression"); job.close(); return;
   }
   SuspendWifiForPrint wifiPause;
-  if (!connectPrinter()) { Serial.println("[BLE] Imprimante éteinte ou connexion refusée"); job.close(); return; }
+  if (!connectPrinter()) { Serial.println("[SPP] Imprimante éteinte ou connexion refusée"); job.close(); return; }
   if (prefs.putString("pending", day) != day.length()) {
     Serial.println("[NVS] Impossible de mémoriser l'envoi ; impression annulée");
     job.close(); printer.disconnect(); return;
@@ -263,6 +273,10 @@ void printIfReady() {
   job.close();
   if (ok && prefs.putString("printed", day) == day.length()) {
     prefs.remove("pending");
+    wifiIdleDay = day;
+    WiFi.setAutoReconnect(false);
+    WiFi.mode(WIFI_OFF);
+    Serial.println("[WIFI] Coupe apres impression confirmee, jusqu'au prochain jour ou une commande explicite");
     Serial.printf("[IMPRESSION] Journal %s transmis, fin du raster continu reçue, anti-doublon enregistré\n", day.c_str());
   } else Serial.println("[IMPRESSION] Envoi incertain. Pas de nouvel essai automatique. Vérifier le papier puis RETRY.");
   printer.disconnect();
@@ -283,20 +297,20 @@ void printCalibration() {
   }
   temp.close();
   File job = LittleFS.open(path, "r");
-  ok = ok && job && job.size() == sizeof(calibrationTicket) && JournalBle::validate(job);
+  ok = ok && job && job.size() == sizeof(calibrationTicket) && JournalClassic::validate(job);
   if (ok) {
     SuspendWifiForPrint wifiPause;
     ok = connectPrinter() && printer.send(job, printDensity);
     printer.disconnect();
   }
   job.close(); LittleFS.remove(path);
-  Serial.printf("[TEST] BLE resultat=%s ; cache et anti-doublon conserves\n", ok ? "OK" : "incertain");
+  Serial.printf("[TEST] SPP resultat=%s ; cache et anti-doublon conserves\n", ok ? "OK" : "incertain");
 }
 
 void command(const String &line) {
   if (line == "STATUS") {
     Serial.printf("[PLAN] Prochain essai=%u UTC Unix\n", scheduledPrint);
-    Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s densite=%u transport=BLE largeur=576 hash=%s actualisation=%s\n",
+    Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s densite=%u transport=Classic-SPP largeur=576 hash=%s actualisation=%s\n",
       today().c_str(), cachedDate.c_str(), WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne",
       prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str(), printDensity,
       cachedHash.substring(0, 16).c_str(), refreshBeforePrint ? "requise" : "OK");
@@ -305,12 +319,14 @@ void command(const String &line) {
     if (storageReady) prefs.putUChar("density", printDensity);
     Serial.printf("[REGLAGE] Densité=%u (0 = réglage natif, mémorisé)\n", printDensity);
   } else if (line.startsWith("PACE ") || line.startsWith("CHUNK ")) {
-    Serial.println("[REGLAGE] BLE : blocs <=182 octets, cadence pilotee par les credits de l'imprimante");
+    Serial.println("[REGLAGE] SPP : blocs 512 octets avec confirmation, sans pause fixe");
   } else if (line == "TEST") {
     printCalibration();
   } else if (line == "FETCH") {
+    wakeWifi();
     lastPoll = millis() - HTTP_POLL_MS;
   } else if (line == "NET") {
+    wakeWifi();
     Serial.printf("[NET] Wi-Fi=%s signal=%d dBm RAM=%u bloc=%u\n",
       WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne", WiFi.RSSI(),
       ESP.getFreeHeap(), ESP.getMaxAllocHeap());
@@ -346,6 +362,7 @@ void command(const String &line) {
     }
     prefs.remove("printed"); prefs.remove("pending");
     refreshBeforePrint = true;
+    wakeWifi();
     lastPoll = millis() - HTTP_POLL_MS;
     lastBt = millis() - BT_POLL_MS;
     Serial.println("[IMPRESSION] Réimpression demandée, actualisation Internet obligatoire avant l'envoi");
@@ -359,7 +376,7 @@ void command(const String &line) {
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\nMini-journal Mathias — ESP32 BLE");
+  Serial.println("\nMini-journal Mathias — ESP32 Classic SPP");
   if (LittleFS.begin(false) && prefs.begin("journal", false)) {
     storageReady = true; loadCache();
     refreshBeforePrint = prefs.getBool("refresh", false);
@@ -395,11 +412,16 @@ void loop() {
       else Serial.println("[PLAN] Essai expire, impression quotidienne conservee");
     }
   }
-  if (WiFi.status() != WL_CONNECTED && millis() - lastWiFi >= 60000UL) {
+  if (!wifiIdleDay.isEmpty() && !today().isEmpty() && today() != wifiIdleDay) {
+    wakeWifi();
+    lastPoll = millis() - HTTP_POLL_MS;
+    Serial.println("[WIFI] Nouveau jour : reprise du telechargement");
+  }
+  if (wifiIdleDay.isEmpty() && WiFi.status() != WL_CONNECTED && millis() - lastWiFi >= 60000UL) {
     lastWiFi = millis(); WiFi.reconnect(); Serial.println("[WIFI] Reconnexion...");
   }
   if (storageReady && WiFi.status() == WL_CONNECTED && !today().isEmpty() && millis() - lastPoll >= HTTP_POLL_MS) {
-    // Release the BLE stack during TLS: both stacks otherwise compete for heap and radio time.
+    // Release the Bluetooth stack during TLS: both stacks otherwise compete for heap and radio time.
     if (btReady) { printer.end(); btReady = false; }
     bool success = pollJournal();
     if (success) {
@@ -409,6 +431,13 @@ void loop() {
     btReady = printer.begin();
     lastPoll = millis();
     if (!success) lastPoll -= HTTP_POLL_MS - 60000UL; // Retry network failures after one minute.
+    if (success && scheduledPrint == 0 && !refreshBeforePrint && prefs.getString("pending", "").isEmpty() &&
+        prefs.getString("printed", "") >= today()) {
+      wifiIdleDay = today();
+      WiFi.setAutoReconnect(false);
+      WiFi.mode(WIFI_OFF);
+      Serial.println("[WIFI] Journal deja imprime : radio coupee");
+    }
   }
   if (millis() - lastBt >= BT_POLL_MS) {
     printIfReady(); lastBt = millis();
