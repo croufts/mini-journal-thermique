@@ -27,3 +27,13 @@ Le premier tirage continu conservait le texte de l’ancien cache. Correction : 
 - Les credentials locaux restent ignorés par Git. Confirmation physique de l’essai programmé et prochain matin autonome encore attendues.
 
 - Le secours RSS exclut aussi les critiques Netflix/Arte, le casting et GTA présents dans les flux mixtes, pour conserver une actualité Tech.
+
+
+## Retour à Classic SPP demandé par Mathias
+
+- Transport actif remplacé par Bluetooth Classic SPP ; le code BLE précédent est conservé en référence, mais NimBLE n’est plus une dépendance du firmware actif.
+- Même raster continu, largeur native 576, hauteur variable et chauffe 4. Blocs de 512 octets sans pause fixe, confirmation de chaque écriture SPP, contrôle de congestion et confirmation finale d’image.
+- Wi-Fi laissé coupé après impression confirmée. Il se réactive au changement de jour ou via FETCH/NET/REPRINT ; une erreur de connexion/envoi rétablit la radio. Après redémarrage, une fois l’heure et le manifeste vérifiés, une journée déjà imprimée laisse également le Wi-Fi coupé.
+- REPRINT force désormais le téléchargement et la vérification du binaire même si son empreinte est identique, afin de simuler la récupération matinale lors de PRINTAT.
+- Compilation réussie, 29 tests Python passent. Firmware installé sur COM6 sans effacement NVS/LittleFS ; démarrage Classic et coupure du Wi-Fi après constat de la journée déjà imprimée observés dans les logs.
+- La confirmation physique en Classic reste attendue lors du prochain cycle simulé, programmé cinq minutes après les vérifications. L’essai BLE précédent avait été confirmé lisible.
