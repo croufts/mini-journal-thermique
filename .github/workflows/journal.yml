@@ -12,6 +12,15 @@ on:
         type: boolean
         default: false
 
+      publish:
+        description: 'Publier pour impression (décocher pour tester seulement)'
+        type: boolean
+        default: true
+      require_ai:
+        description: 'Exiger une sélection IA, sans secours RSS'
+        type: boolean
+        default: false
+
 permissions:
   contents: write
 
@@ -29,21 +38,29 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - name: Installer les dépendances
-        run: python -m pip install -r requirements.txt
       - name: Vérifier si une édition est nécessaire
         id: gate
         env:
-          FORCE: ${{ inputs.force || 'false' }}
+          FORCE: ${{ (inputs.force || (github.event_name == 'workflow_dispatch' && inputs.publish == false)) && 'true' || 'false' }}
         run: |
           due="$(python -m scripts.is_due)"
           echo "due=$due" >> "$GITHUB_OUTPUT"
+      - name: Installer les dépendances
+        if: steps.gate.outputs.due == 'true'
+        run: python -m pip install -r requirements.txt
       - name: Générer le journal
         if: steps.gate.outputs.due == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: python -m mini_journal
+          JOURNAL_GREETING: ${{ vars.JOURNAL_GREETING }}
+          REQUIRE_AI: ${{ inputs.require_ai || 'false' }}
+        run: |
+          if [ "$REQUIRE_AI" = "true" ]; then
+            python -m mini_journal --require-ai
+          else
+            python -m mini_journal
+          fi
       - name: Conserver l’aperçu pour diagnostic
         if: steps.gate.outputs.due == 'true'
         uses: actions/upload-artifact@v4
@@ -52,16 +69,18 @@ jobs:
           path: out/
           retention-days: 3
       - name: Publier sur la branche journal
-        if: steps.gate.outputs.due == 'true'
+        if: steps.gate.outputs.due == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.publish
       - name: Résumé
         env:
           DUE: ${{ steps.gate.outputs.due }}
+          PUBLISH: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
         run: |
           if [ "$DUE" = "true" ]; then
-            echo 'Journal généré, vérifié et publié. Aperçu disponible dans les artifacts.' >> "$GITHUB_STEP_SUMMARY"
+            python -c "import json; print('Sélection : ' + json.load(open('out/edition.json'))['provider'])" >> "$GITHUB_STEP_SUMMARY"
+            echo "Journal généré. Publication : $PUBLISH. Aperçu disponible dans les artifacts." >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'Une édition existe déjà pour cette date : aucune nouvelle requête IA.' >> "$GITHUB_STEP_SUMMARY"
           fi
