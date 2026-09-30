@@ -2,8 +2,9 @@ name: Journal quotidien
 
 on:
   schedule:
-    # UTC: 05:17 Paris en hiver, 06:17 en été. GitHub peut retarder le départ.
-    - cron: '17 4 * * *'
+    # Première tentative 03:17 UTC, puis rattrapage toutes les 30 min jusqu’à 10:47 UTC.
+    # Le garde de date évite une nouvelle requête IA si le journal est déjà publié.
+    - cron: '17,47 3-10 * * *'
   workflow_dispatch:
     inputs:
       force:
