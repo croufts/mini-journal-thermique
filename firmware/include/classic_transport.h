@@ -12,7 +12,7 @@ class JournalClassic {
   BluetoothSerial serial;
   SemaphoreHandle_t completed = xSemaphoreCreateBinary();
   uint8_t packet[512];
-  size_t buffered = 0, packetSize = sizeof(packet), accepted = 0;
+  size_t buffered = 0, accepted = 0;
   volatile uint32_t handle = 0, acknowledged = 0;
   volatile bool congested = false, failed = false;
   uint8_t rxMatch = 0;
@@ -50,7 +50,7 @@ class JournalClassic {
   bool append(const uint8_t *data, size_t n) {
     for (size_t i=0; i<n; i++) {
       packet[buffered++] = data[i];
-      if (buffered == packetSize && !flush()) return false;
+      if (buffered == sizeof(packet) && !flush()) return false;
     }
     return true;
   }
@@ -68,7 +68,7 @@ public:
       }
     });
     if (BT_REQUIRE_PIN) serial.setPin(BT_PIN);
-    return serial.begin("Journal-Mathias", true);
+    return serial.begin("Mini-Journal", true);
   }
   bool connected() { return handle && serial.connected(); }
   void disconnect() { serial.disconnect(); handle = 0; }
