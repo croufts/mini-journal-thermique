@@ -117,7 +117,9 @@ def test_editorial_review_output_is_used(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter")
     corrected = deepcopy(VALID)
     corrected["world"][0]["title"] = "Une formulation relue et complète"
-    post = Mock(side_effect=[response(VALID), response(corrected)])
+    draft = deepcopy(VALID)
+    draft["world"][0]["title"] = "Une formulation terminée par la"
+    post = Mock(side_effect=[response(draft), response(corrected)])
     monkeypatch.setattr(ai.requests, "post", post)
     articles, provider = ai.select(CANDIDATES, CONFIG)
     assert articles == corrected and provider == "OpenRouter"
