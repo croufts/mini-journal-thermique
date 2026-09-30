@@ -245,3 +245,9 @@ La compilation et les tests logiciels ne remplacent pas la validation d’un jou
 Les titres terminés par un mot de liaison et les négations manifestement incomplètes sont refusés avant publication. Après la sélection, une seconde passe IA relit systématiquement les textes avec les mêmes données RSS et les mêmes identifiants. Si une tentative est refusée, la tentative suivante reçoit le motif et doit reformuler. Ces contrôles ciblés ne remplacent pas une relecture éditoriale complète. Le secours RSS conserve des titres entiers courts et des phrases entières ; si aucune sélection valide ne peut être obtenue, aucune édition n’est publiée. La mise en page ne coupe plus un résumé au milieu d’une phrase.
 
 Le cache conserve son format historique en bandes, mais le firmware transmet une seule commande GS v 0 pour toutes les lignes. Il conserve le contrôle de débit par crédits BLE, la garde en NVS et le Wi-Fi suspendu. Aucun arrêt volontaire n’est ajouté à la frontière des anciennes bandes ; un arrêt imposé par l’imprimante reste possible et doit être contrôlé sur le papier.
+
+### Actualisation après une impression
+
+Le cache est actualisé lorsqu’une nouvelle empreinte est publiée, même si le journal du jour a déjà été imprimé. Le verrou quotidien reste indépendant et interdit toute réimpression automatique. La commande REPRINT impose une récupération réussie du manifeste avant l’envoi ; cette attente est mémorisée en NVS et survit au redémarrage. STATUS affiche l’empreinte du cache et si une actualisation est requise.
+
+Mathias a confirmé que le journal envoyé en un raster continu est lisible et ne présente plus de coupures ni de traces blanches. Le premier essai continu utilisait encore l’ancien cache, car le firmware précédent ignorait les éditions corrigées une fois la date imprimée. Ce défaut de cache est corrigé dans cette version.

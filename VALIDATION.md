@@ -4,7 +4,9 @@
 - Firmware ESP32 WROOM-32D compilé et téléversé via COM4, sans effacement du cache ni de NVS.
 - Petit ticket ESP32 BLE / 576 points confirmé lisible par Mathias.
 - Le premier journal BLE était complet mais présentait des traces blanches périodiques avec les bandes séparées.
-- La version actuelle fusionne les bandes en un seul raster et attend une seule fin d’image. Validation physique de cette correction encore nécessaire.
+- La version actuelle fusionne les bandes en un seul raster et attend une seule fin d’image. Mathias a confirmé l’absence de coupures et de traces blanches, et la lisibilité de tout le ticket.
 - Le prochain démarrage autonome, PC éteint, reste à vérifier.
 
 Les confirmations de transport seules ne prouvent ni la présence du papier, ni la qualité du ticket.
+
+Le premier tirage continu conservait le texte de l’ancien cache. Correction : téléchargement des nouvelles empreintes même après impression, actualisation obligatoire et persistante avant REPRINT, empreinte affichée dans STATUS.
