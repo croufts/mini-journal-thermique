@@ -158,7 +158,23 @@ def select(candidates, config):
                 if choice.get("finish_reason") == "length":
                     raise ValueError("Réponse tronquée")
                 articles = validate(parse_json(choice["message"]["content"]), candidates)
-                LOG.info("Sélection validée via %s", name)
+                # A separate editorial pass catches grammar beyond the targeted
+                # deterministic guards. Ground it in the same RSS candidates.
+                payload["messages"].extend([
+                    {"role": "assistant", "content": json.dumps(articles, ensure_ascii=False)},
+                    {"role": "user", "content": "Relis cette édition avant publication. Corrige les titres et résumés mal formés, les mots manquants, les abréviations erronées et les négations incomplètes. Reformule avec moins de mots au lieu de couper. Garde exactement les mêmes identifiants, sections et faits attestés par les candidats RSS. Rends le JSON complet corrigé."},
+                ])
+                review = requests.post(url, timeout=(10, 90),
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, json=payload)
+                review.raise_for_status()
+                reviewed_choice = review.json()["choices"][0]
+                if reviewed_choice.get("finish_reason") == "length":
+                    raise ValueError("Relecture tronquée")
+                reviewed = validate(parse_json(reviewed_choice["message"]["content"]), candidates)
+                if any([a["id"] for a in reviewed[s]] != [a["id"] for a in articles[s]] for s in SECTIONS):
+                    raise ValueError("La relecture a modifié la sélection")
+                articles = reviewed
+                LOG.info("Sélection et relecture validées via %s", name)
                 return articles, name
             except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
                 # Never log response bodies or headers: they can echo credentials or untrusted text.
