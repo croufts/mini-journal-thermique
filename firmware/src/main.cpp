@@ -2,7 +2,6 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <BluetoothSerial.h>
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
@@ -16,19 +15,17 @@
 #endif
 #include "tls_roots.h"
 #include "calibration_ticket.h"
+#include "ble_transport.h"
 
 #ifndef BT_PRINT_DENSITY
 #define BT_PRINT_DENSITY 0
 #endif
 
-#if !defined(CONFIG_BT_SPP_ENABLED)
-#error "An original ESP32 with Bluetooth Classic SPP is required (not S2/S3/C3/C6 or ESP8266)."
-#endif
 static_assert(BT_PRINT_DENSITY >= 0 && BT_PRINT_DENSITY <= 4, "Density must stay within the conservative configured range");
 static_assert(BT_CHUNK_BYTES > 0 && BT_CHUNK_BYTES <= 512, "Invalid chunk size");
 static_assert(HTTP_POLL_MS >= 60000UL, "HTTP interval must be at least one minute");
 
-BluetoothSerial printer;
+JournalBle printer;
 Preferences prefs;
 bool storageReady = false;
 bool btReady = false;
@@ -38,38 +35,7 @@ size_t cachedSize = 0;
 uint32_t lastPoll = 0, lastBt = 0, lastWiFi = 0;
 String serialLine;
 uint8_t printDensity = BT_PRINT_DENSITY;
-uint32_t printPauseMs = BT_CHUNK_DELAY_MS;
 const size_t MAX_JOB_BYTES = 200000;
-volatile bool transmitting = false, transportFailed = false;
-volatile uint32_t acknowledgedBytes = 0;
-volatile uint32_t sppHandle = 0;
-volatile bool sppCongested = false;
-
-void sppCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
-  if (event == ESP_SPP_OPEN_EVT) {
-    sppHandle = param->open.status == ESP_SPP_SUCCESS ? param->open.handle : 0;
-    sppCongested = false;
-    Serial.printf("[BT] OPEN status=%d handle=%u\n", param->open.status, unsigned(sppHandle));
-  }
-  if (event == ESP_SPP_DISCOVERY_COMP_EVT)
-    Serial.printf("[BT] SDP status=%d canaux=%u\n", param->disc_comp.status, param->disc_comp.scn_num);
-  if (event == ESP_SPP_CLOSE_EVT)
-    Serial.printf("[BT] CLOSE status=%d\n", param->close.status);
-  if (event == ESP_SPP_CONG_EVT) sppCongested = param->cong.cong;
-  if (event == ESP_SPP_CLOSE_EVT) sppHandle = 0;
-  if (!transmitting) return;
-  if (event == ESP_SPP_WRITE_EVT) {
-    sppCongested = param->write.cong;
-    if (param->write.status == ESP_SPP_SUCCESS) acknowledgedBytes += param->write.len;
-    else {
-      Serial.printf("[BT] WRITE status=%d len=%d cong=%d\n", param->write.status, param->write.len, param->write.cong);
-      transportFailed = true;
-    }
-  } else if (event == ESP_SPP_CLOSE_EVT) {
-    transportFailed = true;
-  }
-}
-
 String today() {
   time_t now = time(nullptr);
   if (now < 1704067200) return "";
@@ -253,67 +219,8 @@ bool pollJournal() {
 
 bool connectPrinter() {
   if (!btReady) return false;
-  const char *mac = PRINTER_MAC;
-  Serial.println("[BT] Recherche/connexion M02 Pro...");
-  if (!strlen(mac)) return printer.connect(String(PRINTER_NAME));
-  unsigned int bytes[6];
-  if (sscanf(mac, "%02x:%02x:%02x:%02x:%02x:%02x", &bytes[0], &bytes[1], &bytes[2],
-             &bytes[3], &bytes[4], &bytes[5]) != 6) {
-    Serial.println("[BT] Adresse MAC invalide"); return false;
-  }
-  uint8_t address[6];
-  for (int i = 0; i < 6; i++) { if (bytes[i] > 255) return false; address[i] = bytes[i]; }
-  esp_spp_sec_t security = BT_REQUIRE_PIN ? ESP_SPP_SEC_AUTHENTICATE : ESP_SPP_SEC_NONE;
-  if (printer.connect(address, BT_CHANNEL, security, ESP_SPP_ROLE_MASTER)) return true;
-  // Query the actual SPP service if the configured channel cannot connect.
-  if (BT_CHANNEL > 0) {
-    Serial.println("[BT] Reinitialisation et recherche du canal SPP");
-    printer.end(); btReady = printer.begin("Journal-Mathias", true);
-    printer.register_callback(sppCallback);
-    if (BT_REQUIRE_PIN) printer.setPin(BT_PIN);
-    if (btReady) return printer.connect(address, 0, security, ESP_SPP_ROLE_MASTER);
-  }
-  return false;
-}
-
-bool sendSppChunk(const uint8_t *data, size_t n, size_t &queued) {
-    // connect() can wake before the application OPEN callback supplies its handle.
-    uint32_t opening = millis();
-    while (!sppHandle && printer.connected() && millis() - opening < 1000UL) delay(2);
-    // Bypass BluetoothSerial's asynchronous queue: its one-second congestion timeout
-    // can silently discard a packet even though write() accepted it.
-    uint32_t started = millis();
-    while (sppCongested) {
-      if (transportFailed || !sppHandle || millis() - started > 15000UL) {
-        Serial.printf("[BT] Attente bloquee : handle=%u cong=%d erreur=%d ACK=%u attendu=%u\n",
-          unsigned(sppHandle), sppCongested, transportFailed, unsigned(acknowledgedBytes), unsigned(queued));
-        return false;
-      }
-      while (printer.available()) printer.read();
-      delay(2);
-    }
-    if (transportFailed || !sppHandle || !printer.connected()) {
-      Serial.printf("[BT] Session indisponible : handle=%u erreur=%d\n", unsigned(sppHandle), transportFailed);
-      return false;
-    }
-    esp_err_t written = esp_spp_write(sppHandle, n, const_cast<uint8_t *>(data));
-    if (written != ESP_OK) {
-      Serial.printf("[BT] esp_spp_write refuse : %s\n", esp_err_to_name(written)); return false;
-    }
-    queued += n;
-    started = millis();
-    while (acknowledgedBytes < queued) {
-      if (transportFailed || !sppHandle || millis() - started > 15000UL) {
-        Serial.printf("[BT] Attente bloquee : handle=%u cong=%d erreur=%d ACK=%u attendu=%u\n",
-          unsigned(sppHandle), sppCongested, transportFailed, unsigned(acknowledgedBytes), unsigned(queued));
-        return false;
-      }
-      while (printer.available()) printer.read();
-      delay(2);
-    }
-    delay(printPauseMs);
-    while (printer.available()) printer.read();
-    return !transportFailed && printer.connected();
+  Serial.println("[BLE] Recherche/connexion M02 Pro...");
+  return printer.connect(PRINTER_MAC, PRINTER_NAME);
 }
 
 // Keep the radio in the same state as the visually accepted calibration.
@@ -338,139 +245,61 @@ void printIfReady() {
   if (!verifyFile(cachedFile, cachedSize, cachedHash)) {
     Serial.println("[FLASH] Cache corrompu, téléchargement requis"); cachedDate = ""; return;
   }
-  SuspendWifiForPrint wifiPause;
-  if (!connectPrinter()) { Serial.println("[BT] Imprimante éteinte ou connexion refusée"); return; }
   File job = LittleFS.open(cachedFile, "r");
-  if (!job) { printer.disconnect(); return; }
-  // Record uncertainty BEFORE any bytes can reach the printer. A reset cannot trigger a duplicate.
+  if (!job || !JournalBle::validate(job)) {
+    Serial.println("[FLASH] Encodage raster invalide ; aucune impression"); job.close(); return;
+  }
+  SuspendWifiForPrint wifiPause;
+  if (!connectPrinter()) { Serial.println("[BLE] Imprimante éteinte ou connexion refusée"); job.close(); return; }
   if (prefs.putString("pending", day) != day.length()) {
     Serial.println("[NVS] Impossible de mémoriser l'envoi ; impression annulée");
     job.close(); printer.disconnect(); return;
   }
-  uint8_t chunk[BT_CHUNK_BYTES];
-  transportFailed = false; acknowledgedBytes = 0; transmitting = true;
-  size_t queued = 0, sent = 0;
-  // Preserve the base pace while respecting SPP congestion and each write completion.
-
-  // ESC @ in the cached header resets settings: apply the M02-family energy command AFTER it.
-  const uint8_t expectedHeader[] = {0x1b, 0x40, 0x1b, 0x61, 0x01};
-  const uint8_t optionalPrefix[] = {0x10, 0xff, 0xfe, 0x01};
-  uint8_t header[sizeof(expectedHeader)];
-  bool ok = job.read(header, sizeof(optionalPrefix)) == sizeof(optionalPrefix);
-  if (ok && memcmp(header, optionalPrefix, sizeof(optionalPrefix)) == 0) {
-    ok = sendSppChunk(header, sizeof(optionalPrefix), queued); sent = sizeof(optionalPrefix);
-    if (ok) ok = job.read(header, sizeof(header)) == sizeof(header);
-  } else if (ok) {
-    ok = job.read(header + sizeof(optionalPrefix), 1) == 1;
-  }
-  ok = ok && memcmp(header, expectedHeader, sizeof(header)) == 0;
-  if (ok) { ok = sendSppChunk(header, sizeof(header), queued); sent += sizeof(header); }
-  const uint8_t density[] = {0x1f, 0x11, 0x02, printDensity};
-  if (ok && printDensity) ok = sendSppChunk(density, sizeof(density), queued);
-  Serial.printf("[IMPRESSION] Densité=%u, blocs=%u, pause=%u ms\n",
-    printDensity, BT_CHUNK_BYTES, printPauseMs);
-  size_t progress = 16384;
-  while (ok && sent < cachedSize) {
-    size_t n = job.read(chunk, min(sizeof(chunk), cachedSize - sent));
-    if (!n || !sendSppChunk(chunk, n, queued)) { ok = false; break; }
-    sent += n;
-    if (sent >= progress) {
-      Serial.printf("[IMPRESSION] Progression %u/%u\n", unsigned(sent), unsigned(cachedSize));
-      progress += 16384;
-    }
-  }
+  bool ok = printer.send(job, printDensity);
   job.close();
-  if (ok && sent == cachedSize) {
-    // Bound the wait instead of BluetoothSerial::flush(), which has no timeout.
-    uint32_t draining = millis();
-    while (acknowledgedBytes < queued && !transportFailed && printer.connected() && millis() - draining < 15000UL) {
-      while (printer.available()) printer.read();
-      delay(2);
-    }
-    delay(BT_FINISH_DELAY_MS);
-    ok = printer.connected() && !transportFailed && acknowledgedBytes == queued;
-  }
-  transmitting = false;
-  Serial.printf("[IMPRESSION] Fichier=%u/%u, mis en file=%u, confirmés SPP=%u connexion=%s erreur=%s\n",
-    unsigned(sent), unsigned(cachedSize), unsigned(queued), unsigned(acknowledgedBytes),
-    printer.connected() ? "OK" : "fermée", transportFailed ? "oui" : "non");
   if (ok && prefs.putString("printed", day) == day.length()) {
     prefs.remove("pending");
-    Serial.printf("[IMPRESSION] Journal %s transmis, anti-doublon enregistré\n", day.c_str());
-  } else {
-    Serial.println("[IMPRESSION] Envoi incertain. Pas de nouvel essai automatique. Vérifier le papier puis RETRY.");
-  }
-  if (ok) printer.disconnect();
-  if (!ok) {
-    // Drop any queued bytes before an explicit retry can open a fresh print session.
-    printer.end();
-    btReady = printer.begin("Journal-Mathias", true);
-    printer.register_callback(sppCallback);
-    if (BT_REQUIRE_PIN) printer.setPin(BT_PIN);
-  }
+    Serial.printf("[IMPRESSION] Journal %s transmis, fins de bandes reçues, anti-doublon enregistré\n", day.c_str());
+  } else Serial.println("[IMPRESSION] Envoi incertain. Pas de nouvel essai automatique. Vérifier le papier puis RETRY.");
+  printer.disconnect();
 }
 
 void printCalibration() {
-  SuspendWifiForPrint wifiPause;
-  if (!btReady || !connectPrinter()) {
-    Serial.println("[TEST] Connexion refusee ; aucun essai automatique"); return;
-  }
-  transportFailed = false; acknowledgedBytes = 0; transmitting = true;
-  size_t queued = 0, sent = 0;
-  uint8_t chunk[BT_CHUNK_BYTES];
-  uint32_t savedPause = printPauseMs;
+  if (!storageReady) return;
+  const char *path = "/test.bin";
+  File temp = LittleFS.open(path, "w");
+  if (!temp) return;
+  uint8_t buffer[512];
   bool ok = true;
-  size_t section = 0;
-  while (ok && sent < sizeof(calibrationTicket)) {
-    while (section < 2 && sent >= calibrationOffsets[section + 1]) section++;
-    printPauseMs = calibrationPauses[section];
-    size_t n = min(sizeof(chunk), sizeof(calibrationTicket) - sent);
-    if (sent < calibrationOffsets[section + 1]) n = min(n, calibrationOffsets[section + 1] - sent);
-    memcpy_P(chunk, calibrationTicket + sent, n);
-    ok = sendSppChunk(chunk, n, queued);
-    if (ok) sent += n;
+  for (size_t offset = 0; offset < sizeof(calibrationTicket);) {
+    size_t n = min(sizeof(buffer), sizeof(calibrationTicket) - offset);
+    memcpy_P(buffer, calibrationTicket + offset, n);
+    if (temp.write(buffer, n) != n) { ok = false; break; }
+    offset += n;
   }
-  printPauseMs = savedPause;
-  delay(BT_FINISH_DELAY_MS);
-  ok = ok && !transportFailed && printer.connected() && acknowledgedBytes == queued;
-  transmitting = false;
-  Serial.printf("[TEST] %u/%u octets, SPP=%u, resultat=%s\n",
-    unsigned(sent), unsigned(sizeof(calibrationTicket)), unsigned(acknowledgedBytes), ok ? "OK" : "incertain");
-  Serial.printf("[TEST] Mis en file=%u\n", unsigned(queued));
-  // Restore the selected density without changing journal cache or duplicate guards.
-  if (ok && printDensity) {
-    transmitting = true;
-    const uint8_t density[] = {0x1f, 0x11, 0x02, printDensity};
-    ok = sendSppChunk(density, sizeof(density), queued);
-    transmitting = false;
+  temp.close();
+  File job = LittleFS.open(path, "r");
+  ok = ok && job && job.size() == sizeof(calibrationTicket) && JournalBle::validate(job);
+  if (ok) {
+    SuspendWifiForPrint wifiPause;
+    ok = connectPrinter() && printer.send(job, printDensity);
+    printer.disconnect();
   }
-  if (ok) printer.disconnect();
-  else {
-    printer.end(); btReady = printer.begin("Journal-Mathias", true);
-    printer.register_callback(sppCallback);
-    if (BT_REQUIRE_PIN) printer.setPin(BT_PIN);
-  }
+  job.close(); LittleFS.remove(path);
+  Serial.printf("[TEST] BLE resultat=%s ; cache et anti-doublon conserves\n", ok ? "OK" : "incertain");
 }
 
 void command(const String &line) {
   if (line == "STATUS") {
-    Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s densite=%u pause=%u ms\n",
+    Serial.printf("[STATUS] Aujourd'hui=%s cache=%s Wi-Fi=%s imprimé=%s incertain=%s densite=%u transport=BLE largeur=576\n",
       today().c_str(), cachedDate.c_str(), WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne",
-      prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str(), printDensity, unsigned(printPauseMs));
+      prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str(), printDensity);
   } else if (line.length() == 9 && line.startsWith("DENSITY ") && line[8] >= '0' && line[8] <= '4') {
     printDensity = line[8] - '0';
     if (storageReady) prefs.putUChar("density", printDensity);
     Serial.printf("[REGLAGE] Densité=%u (0 = réglage natif, mémorisé)\n", printDensity);
-  } else if (line.startsWith("PACE ")) {
-    String value = line.substring(5);
-    bool valid = value.length() > 0 && value.length() <= 2;
-    for (size_t i = 0; i < value.length(); i++) valid = valid && isDigit(value[i]);
-    uint32_t pause = value.toInt();
-    if (valid && pause <= 50) {
-      printPauseMs = pause;
-      if (storageReady) prefs.putUInt("pause", printPauseMs);
-      Serial.printf("[REGLAGE] Pause=%u ms, memorisee\n", unsigned(printPauseMs));
-    } else Serial.println("[REGLAGE] PACE accepte 0 a 50 ms");
+  } else if (line.startsWith("PACE ") || line.startsWith("CHUNK ")) {
+    Serial.println("[REGLAGE] BLE : blocs <=182 octets, cadence pilotee par les credits de l'imprimante");
   } else if (line == "TEST") {
     printCalibration();
   } else if (line == "FETCH") {
@@ -499,34 +328,25 @@ void command(const String &line) {
     lastBt = millis() - BT_POLL_MS;
     Serial.println("[IMPRESSION] Réimpression explicitement demandée");
   } else if (line == "SCAN" && btReady) {
-    Serial.println("[BT] Scan Classic pendant 10 secondes...");
-    BTScanResults *results = printer.discover(10000);
-    if (results) {
-      for (int i = 0; i < results->getCount(); i++) Serial.println(results->getDevice(i)->toString().c_str());
-    }
-    Serial.println("[BT] Scan terminé (absence = éteinte, occupée ou modèle BLE uniquement)");
+    printer.scan();
   } else {
-    Serial.println("Commandes : STATUS, FETCH, NET, SCAN, RETRY, REPRINT, TEST, DENSITY 0..4, PACE 0..50");
+    Serial.println("Commandes : STATUS, FETCH, NET, SCAN, RETRY, REPRINT, TEST, DENSITY 0..4");
   }
 }
 
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\nMini-journal Mathias — ESP32 Classic");
+  Serial.println("\nMini-journal Mathias — ESP32 BLE");
   if (LittleFS.begin(false) && prefs.begin("journal", false)) {
     storageReady = true; loadCache();
-    printPauseMs = prefs.getUInt("pause", BT_CHUNK_DELAY_MS);
-    if (printPauseMs > 50) printPauseMs = BT_CHUNK_DELAY_MS;
     printDensity = prefs.getUChar("density", BT_PRINT_DENSITY);
     if (printDensity > 4) printDensity = BT_PRINT_DENSITY;
   } else {
     // Never format silently: that could delete the only cached journal or duplicate guard.
     Serial.println("[FLASH] LittleFS/NVS indisponible. Premier démarrage : téléverser le filesystem vide.");
   }
-  btReady = printer.begin("Journal-Mathias", true);
-  printer.register_callback(sppCallback);
-  if (BT_REQUIRE_PIN) printer.setPin(BT_PIN);
+  btReady = printer.begin();
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -546,12 +366,10 @@ void loop() {
     lastWiFi = millis(); WiFi.reconnect(); Serial.println("[WIFI] Reconnexion...");
   }
   if (storageReady && WiFi.status() == WL_CONNECTED && !today().isEmpty() && millis() - lastPoll >= HTTP_POLL_MS) {
-    // Release the Classic stack during TLS: both stacks otherwise compete for heap and radio time.
+    // Release the BLE stack during TLS: both stacks otherwise compete for heap and radio time.
     if (btReady) { printer.end(); btReady = false; }
     bool success = pollJournal();
-    btReady = printer.begin("Journal-Mathias", true);
-    printer.register_callback(sppCallback);
-    if (BT_REQUIRE_PIN) printer.setPin(BT_PIN);
+    btReady = printer.begin();
     lastPoll = millis();
     if (!success) lastPoll -= HTTP_POLL_MS - 60000UL; // Retry network failures after one minute.
   }
