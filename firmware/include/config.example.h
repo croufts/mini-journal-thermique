@@ -14,6 +14,11 @@
 #define BT_PIN "0000"
 
 #define PARIS_TZ "CET-1CEST,M3.5.0,M10.5.0/3"
+// Local cycle starts at 05:00 Paris time, including daylight saving changes.
+#define DAILY_START_HOUR 5
+// Optional fine-grained GitHub token: only this repository, Actions read/write.
+// Kept solely in ignored journal_config.h; never in the public repository.
+#define GITHUB_ACTIONS_TOKEN ""
 #define HTTP_POLL_MS 300000UL
 #define BT_POLL_MS 20000UL
 
