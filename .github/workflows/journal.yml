@@ -2,9 +2,12 @@ name: Journal quotidien
 
 on:
   schedule:
-    # Première tentative 03:17 UTC, puis rattrapage toutes les 30 min jusqu’à 10:47 UTC.
-    # Le garde de date évite une nouvelle requête IA si le journal est déjà publié.
-    - cron: '17,47 3-10 * * *'
+    # 05:00 Paris, ete comme hiver. Le declenchement ESP32 evite les retards du cron.
+    - cron: '0 5 * * *'
+      timezone: 'Europe/Paris'
+    # Rattrapages : aucune requete IA une fois l'edition du jour publiee.
+    - cron: '17,47 5-12 * * *'
+      timezone: 'Europe/Paris'
   workflow_dispatch:
     inputs:
       force:
