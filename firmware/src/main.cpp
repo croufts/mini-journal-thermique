@@ -17,6 +17,14 @@
 #include "calibration_ticket.h"
 #include "classic_transport.h"
 
+#ifndef GITHUB_ACTIONS_TOKEN
+#define GITHUB_ACTIONS_TOKEN ""
+#endif
+#ifndef DAILY_START_HOUR
+#define DAILY_START_HOUR 5
+#endif
+static_assert(DAILY_START_HOUR >= 0 && DAILY_START_HOUR < 24, "Invalid daily start hour");
+
 #ifndef BT_PRINT_DENSITY
 #define BT_PRINT_DENSITY 0
 #endif
@@ -29,6 +37,7 @@ Preferences prefs;
 bool storageReady = false;
 bool btReady = false;
 bool refreshBeforePrint = false;
+bool manualPrint = false;
 String wifiIdleDay;
 uint32_t scheduledPrint = 0;
 int activeSlot = 0;
@@ -37,6 +46,7 @@ size_t cachedSize = 0;
 uint32_t lastPoll = 0, lastBt = 0, lastWiFi = 0;
 String serialLine;
 uint8_t printDensity = BT_PRINT_DENSITY;
+uint8_t connectionFailures = 0;
 const size_t MAX_JOB_BYTES = 200000;
 String today() {
   time_t now = time(nullptr);
@@ -47,6 +57,15 @@ String today() {
   strftime(date, sizeof(date), "%Y-%m-%d", &local);
   return String(date);
 }
+
+bool cycleDue() {
+  time_t now = time(nullptr);
+  if (now < 1704067200) return false;
+  struct tm local;
+  localtime_r(&now, &local);
+  return local.tm_hour >= DAILY_START_HOUR;
+}
+
 
 bool validDate(const String &date) {
   if (date.length() != 10 || date[4] != '-' || date[7] != '-') return false;
@@ -112,8 +131,9 @@ bool loadCache() {
 }
 
 bool beginHttp(HTTPClient &http, WiFiClientSecure &tls, const String &url) {
-  if (!url.startsWith("https://raw.githubusercontent.com/")) {
-    Serial.println("[HTTPS] L'URL doit utiliser raw.githubusercontent.com");
+  if (!url.startsWith("https://raw.githubusercontent.com/") &&
+      !url.startsWith("https://api.github.com/repos/")) {
+    Serial.println("[HTTPS] Hote GitHub requis");
     return false;
   }
   tls.setCACert(TLS_ROOTS); // Certificate AND hostname validation. Never setInsecure().
@@ -124,6 +144,36 @@ bool beginHttp(HTTPClient &http, WiFiClientSecure &tls, const String &url) {
   http.useHTTP10(true); // Avoid chunked-transfer framing in the streaming download.
   return http.begin(tls, url);
 }
+
+bool triggerGeneration() {
+  if (!strlen(GITHUB_ACTIONS_TOKEN)) {
+    Serial.println("[GENERATION] Jeton absent : attente du cron GitHub");
+    return false;
+  }
+  String base = JOURNAL_BASE_URL;
+  const String prefix = "https://raw.githubusercontent.com/";
+  if (!base.startsWith(prefix)) return false;
+  int ownerEnd = base.indexOf('/', prefix.length());
+  int repoEnd = base.indexOf('/', ownerEnd + 1);
+  if (ownerEnd < 0 || repoEnd < 0) return false;
+  String repository = base.substring(prefix.length(), repoEnd);
+  WiFiClientSecure tls;
+  HTTPClient http;
+  if (!beginHttp(http, tls, "https://api.github.com/repos/" + repository +
+      "/actions/workflows/journal.yml/dispatches")) return false;
+  http.addHeader("Authorization", String("Bearer ") + GITHUB_ACTIONS_TOKEN);
+  http.addHeader("Accept", "application/vnd.github+json");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("User-Agent", "MiniJournal-ESP32");
+  http.addHeader("X-GitHub-Api-Version", "2022-11-28");
+  int status = http.POST("{\"ref\":\"main\"}");
+  http.end();
+  // The API may return either an empty success or the created run details.
+  bool ok = status == 204 || status == 200;
+  Serial.printf("[GENERATION] Demande directe GitHub HTTP=%d %s\n", status, ok ? "acceptee" : "echec");
+  return ok;
+}
+
 
 bool downloadJob(const String &filename, size_t size, const String &hash, int slot) {
   WiFiClientSecure tls;
@@ -259,14 +309,27 @@ void printIfReady() {
       Serial.println("[IMPRESSION] Ancien envoi incertain clos ; nouvelle edition autorisee");
     }
   }
-  if (refreshBeforePrint || !storageReady || day.isEmpty() || cachedDate != day || prefs.getString("printed", "") >= day ||
+  if ((!manualPrint && !cycleDue()) || refreshBeforePrint || !storageReady || day.isEmpty() || cachedDate != day || prefs.getString("printed", "") >= day ||
       !prefs.getString("pending", "").isEmpty()) return;
   File job = LittleFS.open(cachedFile, "r");
   if (!job || !JournalClassic::validate(job)) {
     Serial.println("[FLASH] Encodage raster invalide ; aucune impression"); job.close(); return;
   }
   SuspendWifiForPrint wifiPause;
-  if (!connectPrinter()) { printer.disconnect(); Serial.println("[SPP] Imprimante éteinte ou connexion refusée"); job.close(); return; }
+  if (!connectPrinter()) {
+    printer.disconnect();
+    Serial.println("[SPP] Imprimante éteinte ou connexion refusée");
+    job.close();
+    if (++connectionFailures >= 3) {
+      Serial.println("[SPP] Trois connexions refusees : redemarrage du Bluetooth");
+      printer.end(); btReady = false;
+      delay(500);
+      btReady = printer.begin();
+      connectionFailures = 0;
+    }
+    return;
+  }
+  connectionFailures = 0;
   if (prefs.putString("pending", day) != day.length()) {
     Serial.println("[NVS] Impossible de mémoriser l'envoi ; impression annulée");
     job.close(); printer.disconnect(); return;
@@ -276,6 +339,7 @@ void printIfReady() {
   if (ok && prefs.putString("printed", day) == day.length()) {
     prefs.remove("pending");
     wifiIdleDay = day;
+    manualPrint = false;
     WiFi.setAutoReconnect(false);
     WiFi.mode(WIFI_OFF);
     Serial.println("[WIFI] Coupe apres impression confirmee, jusqu'au prochain jour ou une commande explicite");
@@ -323,6 +387,16 @@ void command(const String &line) {
 
   } else if (line == "TEST") {
     printCalibration();
+  } else if (line == "GENERATE") {
+    wakeWifi();
+    // A diagnostic request does not clear the cache or the duplicate guard.
+    uint32_t start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 15000UL) delay(10);
+    if (btReady) { printer.end(); btReady = false; }
+    if (WiFi.status() == WL_CONNECTED) triggerGeneration();
+    else Serial.println("[GENERATION] Wi-Fi indisponible");
+    btReady = printer.begin();
+    lastPoll = millis() - HTTP_POLL_MS;
   } else if (line == "FETCH") {
     wakeWifi();
     lastPoll = millis() - HTTP_POLL_MS;
@@ -363,6 +437,7 @@ void command(const String &line) {
     }
     prefs.remove("printed"); prefs.remove("pending");
     refreshBeforePrint = true;
+    manualPrint = true;
     wakeWifi();
     lastPoll = millis() - HTTP_POLL_MS;
     lastBt = millis() - BT_POLL_MS;
@@ -370,7 +445,7 @@ void command(const String &line) {
   } else if (line == "SCAN" && btReady) {
     printer.scan();
   } else {
-    Serial.println("Commandes : STATUS, FETCH, NET, SCAN, RETRY, REPRINT, PRINTAT timestamp, TEST, DENSITY 0..4");
+    Serial.println("Commandes : STATUS, GENERATE, FETCH, NET, SCAN, RETRY, REPRINT, PRINTAT timestamp, TEST, DENSITY 0..4");
   }
 }
 
@@ -381,6 +456,7 @@ void setup() {
   if (LittleFS.begin(false) && prefs.begin("journal", false)) {
     storageReady = true; loadCache();
     refreshBeforePrint = prefs.getBool("refresh", false);
+    manualPrint = refreshBeforePrint;
     scheduledPrint = prefs.getUInt("printAt", 0);
     printDensity = prefs.getUChar("density", BT_PRINT_DENSITY);
     if (printDensity > 4) printDensity = BT_PRINT_DENSITY;
@@ -395,6 +471,8 @@ void setup() {
   configTzTime(PARIS_TZ, "pool.ntp.org", "time.google.com");
   lastPoll = millis() - HTTP_POLL_MS;
   lastBt = millis() - BT_POLL_MS;
+  Serial.printf("[CYCLE] Demarrage quotidien %02d:00 Europe/Paris ; declenchement direct=%s\n",
+    DAILY_START_HOUR, strlen(GITHUB_ACTIONS_TOKEN) ? "configure" : "absent");
   Serial.println("[DEMARRAGE] Attente Wi-Fi/heure ; STATUS et SCAN disponibles");
 }
 
@@ -413,7 +491,7 @@ void loop() {
       else Serial.println("[PLAN] Essai expire, impression quotidienne conservee");
     }
   }
-  if (!wifiIdleDay.isEmpty() && !today().isEmpty() && today() != wifiIdleDay) {
+  if (!wifiIdleDay.isEmpty() && !today().isEmpty() && today() != wifiIdleDay && cycleDue()) {
     wakeWifi();
     lastPoll = millis() - HTTP_POLL_MS;
     Serial.println("[WIFI] Nouveau jour : reprise du telechargement");
@@ -421,10 +499,23 @@ void loop() {
   if (wifiIdleDay.isEmpty() && WiFi.status() != WL_CONNECTED && millis() - lastWiFi >= 60000UL) {
     lastWiFi = millis(); WiFi.reconnect(); Serial.println("[WIFI] Reconnexion...");
   }
-  if (storageReady && WiFi.status() == WL_CONNECTED && !today().isEmpty() && millis() - lastPoll >= HTTP_POLL_MS) {
+  // Once the current edition is cached, leave the Bluetooth stack intact.
+  // Repeated TLS polls used to tear it down while waiting for the printer.
+  bool needsJournal = cachedDate != today() || refreshBeforePrint;
+  if (storageReady && WiFi.status() == WL_CONNECTED && !today().isEmpty() &&
+      (cycleDue() || refreshBeforePrint) && needsJournal && millis() - lastPoll >= HTTP_POLL_MS) {
     // Release the Bluetooth stack during TLS: both stacks otherwise compete for heap and radio time.
     if (btReady) { printer.end(); btReady = false; }
     bool success = pollJournal();
+    if (!success && cachedDate != today() && strlen(GITHUB_ACTIONS_TOKEN)) {
+      uint32_t now = uint32_t(time(nullptr));
+      uint32_t previous = prefs.getUInt("dispatchAt", 0);
+      if (!previous || now < previous || now - previous >= 600UL) {
+        // Retry at most every ten minutes, including after power cycling.
+        prefs.putUInt("dispatchAt", now);
+        triggerGeneration();
+      }
+    }
     if (success) {
       prefs.remove("refresh");
       refreshBeforePrint = prefs.getBool("refresh", false);
@@ -432,16 +523,18 @@ void loop() {
     btReady = printer.begin();
     lastPoll = millis();
     if (!success) lastPoll -= HTTP_POLL_MS - 60000UL; // Retry network failures after one minute.
-    if (success && scheduledPrint == 0 && !refreshBeforePrint && prefs.getString("pending", "").isEmpty() &&
+  }
+  if (millis() - lastBt >= BT_POLL_MS) {
+    printIfReady();
+    if (wifiIdleDay.isEmpty() && storageReady && !today().isEmpty() &&
+        !refreshBeforePrint && scheduledPrint == 0 && prefs.getString("pending", "").isEmpty() &&
         prefs.getString("printed", "") >= today()) {
       wifiIdleDay = today();
       WiFi.setAutoReconnect(false);
       WiFi.mode(WIFI_OFF);
-      Serial.println("[WIFI] Journal deja imprime : radio coupee");
+      Serial.printf("[WIFI] Jour deja imprime : attente du cycle de %02d:00\n", DAILY_START_HOUR);
     }
-  }
-  if (millis() - lastBt >= BT_POLL_MS) {
-    printIfReady(); lastBt = millis();
+    lastBt = millis();
   }
   delay(10);
 }
