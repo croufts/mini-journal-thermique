@@ -4,7 +4,8 @@ from pathlib import Path
 
 import certifi
 
-ROOTS = {"ISRG Root X1", "DigiCert Global Root G2", "Sectigo Public Server Authentication Root R46"}
+ROOTS = {"ISRG Root X1", "DigiCert Global Root G2", "Sectigo Public Server Authentication Root R46",
+         "Sectigo Public Server Authentication Root E46"}
 
 
 def main():
