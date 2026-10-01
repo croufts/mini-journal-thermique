@@ -15,7 +15,7 @@ GitHub Actions → RSS → OpenRouter (ou Groq) → sélection et relecture
                               Phomemo M02 Pro
 ```
 
-L’ESP32 consulte le manifeste toutes les cinq minutes et tente une connexion à l’imprimante toutes les vingt secondes. Le Wi-Fi est suspendu pendant l’envoi puis reste coupé après une impression confirmée. Il se réactive au changement de jour. Une date mémorisée empêche les doubles impressions, même après redémarrage.
+Le cycle démarre à **05:00, heure de Paris**, été comme hiver. Un ESP32 alimenté plus tard rattrape le cycle au démarrage. Il consulte le manifeste toutes les cinq minutes (une minute s’il n’est pas encore disponible), puis conserve le Bluetooth actif une fois l’édition du jour reçue. Une connexion refusée trois fois redémarre le Bluetooth, sans redémarrer l’ESP32. Le Wi-Fi est suspendu pendant l’envoi puis reste coupé jusqu’au cycle suivant. Une date mémorisée empêche les doubles impressions, même après redémarrage.
 
 ## Matériel
 
@@ -43,9 +43,13 @@ Le mode manuel permet de forcer une nouvelle édition, de **décocher la publica
 
 ## Horaires et configuration
 
-La première tentative est à **03:17 UTC** (04:17 à Paris en hiver, 05:17 en été), puis toutes les trente minutes jusqu’à 10:47 UTC. Une édition déjà publiée pour la date du jour arrête les tentatives suivantes avant installation des dépendances et appel IA. Les horaires se modifient dans `.github/workflows/journal.yml`.
+Le workflow est programmé à **05:00 Europe/Paris**, avec des rattrapages à :17 et :47 jusqu’à 12:47. Le champ `timezone` suit automatiquement l’heure d’été et d’hiver. Une édition déjà publiée pour la date du jour arrête les tentatives suivantes avant installation des dépendances et appel IA. Les horaires se modifient dans `.github/workflows/journal.yml` et `DAILY_START_HOUR` côté ESP32.
 
-GitHub peut retarder un lancement. Le firmware attend une édition datée du jour et continue à consulter GitHub si elle arrive tard. Les workflows planifiés des dépôts publics peuvent être désactivés après une période d’inactivité : vérifier Actions si la génération cesse.
+GitHub peut retarder ou manquer un lancement planifié. Pour éviter de dépendre de ce cron, l’ESP32 peut envoyer directement un `workflow_dispatch` à 05:00 si l’édition du jour manque. Si elle reste indisponible, il redemande la génération au maximum toutes les dix minutes ; cette limite survit au redémarrage. Le workflow conserve sa garde de date et ne régénère pas une édition déjà publiée. Ce déclenchement direct ne garantit pas la disponibilité du réseau, du runner ou de l’imprimante.
+
+Pour l’activer, créer un **fine-grained personal access token** GitHub limité au seul dépôt du journal, avec **Actions : Read and write** (Metadata en lecture est automatique). Copier sa valeur dans `GITHUB_ACTIONS_TOKEN` dans le fichier local ignoré `firmware/include/journal_config.h`, puis téléverser le firmware. Aucun droit Contents en écriture n’est requis pour ce jeton. Vérifier sa date d’expiration et le remplacer avant échéance. Ne jamais le committer ni publier les binaires compilés avec cette configuration. Sans jeton, le cron reste le seul déclencheur.
+
+Les workflows planifiés des dépôts publics peuvent être désactivés après une période d’inactivité : vérifier Actions si la génération cesse.
 
 `config.json` contient les flux, le fuseau, l’âge maximal des nouvelles, les modèles et la mise en page. Par défaut : sept flux, nouvelles des dernières 36 heures, neuf candidats maximum par rubrique. Les sources sans date ou indisponibles sont ignorées ; chaque rubrique doit conserver au moins un candidat.
 
@@ -96,6 +100,7 @@ Pour valider l’installation : laisser l’imprimante éteinte pendant le tél�
 | Commande série | Effet |
 |---|---|
 | `STATUS` | Date, cache, Wi-Fi, impression, éventuel envoi incertain |
+| `GENERATE` | Demande directement le workflow GitHub ; conserve le cache et l’anti-doublon |
 | `FETCH` | Réactive le Wi-Fi et vérifie le journal immédiatement |
 | `SCAN` | Recherche Bluetooth Classic des appareils M02 |
 | `TEST` | Petit ticket de contrôle, sans modifier l’anti-doublon |

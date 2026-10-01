@@ -37,8 +37,19 @@
 1. La qualité éditoriale dépend du modèle gratuit et des extraits RSS. Le code ne peut pas certifier la grammaire ou la véracité de chaque reformulation ; les contrôles linguistiques restent ciblés.
 2. Une édition RSS de secours est définitive pour la journée, comme une édition IA : les rattrapages ne la remplacent pas automatiquement. Une régénération manuelle est possible.
 3. Le format 626 pixels puis adaptation à 576 est conservé pour rester compatible avec les ESP32 déjà installés. Un passage entièrement natif à 576 demanderait une migration coordonnée du générateur et du firmware et un nouveau test papier. Il n’est pas nécessaire au fonctionnement actuel.
-4. GitHub Actions gratuit ne garantit pas une minute d’exécution. Les heures UTC changent d’équivalent local selon la saison.
+4. GitHub Actions gratuit ne garantit pas une minute d’exécution. Le cycle est désormais réglé à 05:00 Europe/Paris avec adaptation saisonnière ; un déclenchement direct par l’ESP32 évite d’attendre le cron, mais nécessite un jeton Actions valide et une connexion Internet.
 5. Après coupure électrique, l’ESP32 doit retrouver Internet pour remettre son horloge à l’heure. Aucun composant RTC supplémentaire n’est prévu.
 6. Les tests logiciels et la compilation ne prouvent pas la qualité physique. Toute nouvelle version du firmware doit être téléversée puis testée sur matériel avant de la déclarer validée.
 
 Le transport Classic continu et la coupure du Wi-Fi ont été validés sur un cycle autonome avant cette revue. Les changements de firmware de cette revue sont distincts de ce résultat matériel.
+
+
+## Incident du 1er octobre et corrections
+
+Le premier workflow de la journée a été lancé à 12:07 Paris, et publié à 12:15. Aucun lancement matinal n’est enregistré. L’ESP32 a bien reçu cette édition ; la connexion à la M02 Pro a ensuite abouti après allumage et arrêt du Bluetooth du téléphone. Les logs montrent une date imprimée au 1er octobre, sans envoi incertain.
+
+- Démarrage quotidien à 05:00 Europe/Paris dans le workflow et le firmware.
+- Déclenchement direct du workflow par l’ESP32 si le journal manque, avec un jeton limité à Actions sur ce dépôt. La demande est espacée de dix minutes tant que le fichier reste absent.
+- Plus de réinitialisation périodique du Bluetooth pour consulter un manifeste déjà reçu.
+- Trois connexions refusées relancent uniquement la pile Bluetooth, sans toucher au cache ou à la date imprimée.
+- Après un redémarrage d’une journée déjà imprimée, le Wi-Fi se coupe immédiatement dès que l’heure est valide ; il se réactive au prochain cycle de 05:00.
