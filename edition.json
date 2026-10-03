@@ -1,0 +1,50 @@
+{
+  "provider": "OpenRouter",
+  "articles": {
+    "france": [
+      {
+        "id": "255c2d34e2088218",
+        "title": "Lycéens : le mouvement de blocage se structure",
+        "summary": "À Aubervilliers, des lycéens entendent poursuivre la mobilisation, se structurer et se rassembler avec d'autres établissements de Seine-Saint-Denis."
+      },
+      {
+        "id": "5092810e9fcb1cd2",
+        "title": "Loi intégrale : un combat commun contre les violences",
+        "summary": "La proposition de loi intégrale, débattue par les députés, unit les défenseurs des droits des enfants et les militantes féministes contre les violences sexuelles."
+      },
+      {
+        "id": "b69fcbda3ecf46b3",
+        "title": "Marche des fiertés : des milliers attendus à Paris",
+        "summary": "La manifestation partira à 13 heures de la place d'Italie pour rejoindre la place de la Bastille, où un concert est prévu."
+      }
+    ],
+    "world": [
+      {
+        "id": "9b43704c097c1fcb",
+        "title": "Ukraine : un autre pont majeur de Kiev touché",
+        "summary": "Après le pont Pivdenny, le pont Pivnitchny, plus au nord de Kiev sur le Dniepr, a été touché tôt samedi par une frappe russe."
+      },
+      {
+        "id": "c37041e12521c3e4",
+        "title": "Corée du Nord : nouveau missile balistique lancé",
+        "summary": "Le projectile s'est écrasé en mer sans dégâts, selon l'armée sud-coréenne. Ce tir intervient en plein regain de tension entre Pyongyang et Séoul."
+      },
+      {
+        "id": "4412d4f209f5c4ea",
+        "title": "Détroit d'Ormuz : deux pétroliers attaqués",
+        "summary": "Les navires ont été touchés par des projectiles non identifiés, sans victime ni conséquence environnementale."
+      }
+    ],
+    "tech": [
+      {
+        "id": "9e1321efbbb6cc35",
+        "title": "États-Unis : l'intelligence artificielle confiée au renseignement",
+        "summary": "Donald Trump s'apprête à confier le dossier de l'intelligence artificielle à Jay Clayton, chef du renseignement américain, malgré son absence d'expérience technologique."
+      }
+    ]
+  },
+  "layout": {
+    "body_size": 29,
+    "used_height": 2168
+  }
+}
