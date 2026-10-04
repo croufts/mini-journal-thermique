@@ -118,6 +118,25 @@ def test_selection_rejects_duplicates_wrong_sections_and_unhashable_ids():
             ai.validate_selection({**SELECTION, "tech": ids}, CANDIDATES)
 
 
+def test_draft_order_is_restored_but_missing_articles_are_rejected():
+    selected = CANDIDATES + [{**CANDIDATES[0], "id": "france2"}]
+    draft = deepcopy(VALID)
+    draft["france"].insert(0, {**VALID["france"][0], "id": "france2"})
+    restored = ai.preserve_selection(draft, selected)
+    assert [a["id"] for a in restored["france"]] == ["france", "france2"]
+    with pytest.raises(ValueError, match="sélection"):
+        ai.preserve_selection(VALID, selected)
+
+
+def test_repair_order_is_restored_without_changing_selected_articles(setup):
+    bad = deepcopy(VALID)
+    for section in ("france", "tech"):
+        bad[section][0]["summary"] = "Sans ponctuation"
+    patch = {"articles": [VALID["tech"][0], VALID["france"][0]]}
+    articles, _, _, _ = setup([response(SELECTION), response(bad), response(bad), response(patch)])
+    assert articles == VALID
+
+
 def test_observed_telegraphic_title_is_repaired(setup):
     bad = deepcopy(VALID)
     bad["france"][0]["title"] = "Wauquiez refuse taxer retraités"
