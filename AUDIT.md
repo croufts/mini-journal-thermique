@@ -53,3 +53,7 @@ Le premier workflow de la journée a été lancé à 12:07 Paris, et publié à 
 - Plus de réinitialisation périodique du Bluetooth pour consulter un manifeste déjà reçu.
 - Trois connexions refusées relancent uniquement la pile Bluetooth, sans toucher au cache ou à la date imprimée.
 - Après un redémarrage d’une journée déjà imprimée, le Wi-Fi se coupe immédiatement dès que l’heure est valide ; il se réactive au prochain cycle de 05:00.
+
+### Validation du 4 octobre 2026
+
+Le transfert direct par `esp_spp_write` restait sans confirmation après douze paquets, même avec une pause de 10 ms ou une taille de paquet réduite. Le transport utilise désormais `BluetoothSerial.write`, avec un seul paquet de 330 octets en attente et un contrôle de sa confirmation. Le journal complet du 4 octobre a été transmis : 2 319 lignes, 166 988 octets, 38,17 secondes. La fin de raster a été reçue, la journée mémorisée comme imprimée et le Wi-Fi coupé. La sortie physique a également été confirmée complète et lisible jusqu’à la section TECH.
