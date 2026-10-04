@@ -66,3 +66,13 @@ La génération est séparée en sélection d’identifiants, rédaction, relect
 Groq, sa configuration et le secours RSS brut sont retirés. Une réponse invalide ne publie plus une édition médiocre qui empêcherait les rattrapages du jour. Les diagnostics conservent le modèle, l’étape, les longueurs fautives et les tokens déclarés, sans clé ni réponse brute. Les échecs d’authentification ou de quota ne déclenchent pas une boucle immédiate.
 
 Ces changements concernent la génération du texte. L’essai matériel de 12h30 s’est arrêté après la salutation ; l’ESP a mémorisé un envoi incertain. La réussite matérielle consignée plus haut concerne le test précédent et ne valide pas ce nouveau cycle après coupure d’alimentation. Les tests d’impression sont arrêtés à la demande de l’utilisateur.
+
+## Renforcement du transport Bluetooth — 4 octobre 2026
+
+La connexion est stabilisée deux secondes avant de transmettre les seules commandes d’initialisation/densité ; leur ACK est attendu séparément, puis un délai de 300 ms précède l’image. Cela évite un envoi immédiat à l’allumage, sans inventer une commande de statut « prête » non documentée. Les commandes de préparation ne contiennent ni image ni avance papier.
+
+Les événements d’écriture, congestion, fermeture et réception sont associés à la connexion active. L’état partagé entre la boucle et les callbacks est protégé par une section critique courte. Une confirmation d’écriture inattendue ou de longueur incorrecte ne peut pas valider un paquet. Les messages de fin prématurés sont comptés et ignorés ; l’attente de fin est armée lors du dernier paquet, y compris si l’image finit exactement à la limite de 330 octets.
+
+Le dernier compte rendu de tentative est conservé en NVS et affiché par STATUS, avec phase, cause, compteurs, statuts et réponse reçue bornée à 16 octets. Le début est mémorisé avant l’image, puis le résultat remplace ce compte rendu. Une coupure brutale laisse un état « en-cours », pas des compteurs supposés exacts. Les écritures ne sont pas faites à chaque paquet ; les échecs de connexion identiques sont dédupliqués. Les gardes de journée imprimée et d’envoi incertain sont conservées.
+
+Ces changements sont vérifiés en logiciel et compilés pour ESP32. Ils ne sont pas téléversés sur l’ESP et aucune impression matérielle n’est déclenchée. La préparation et les délais doivent encore être validés lors d’un prochain essai papier autorisé.
