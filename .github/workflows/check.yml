@@ -22,6 +22,10 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest -q
+      - name: Vérifier les événements Bluetooth sans matériel
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -Ifirmware/include tests/transport_state_test.cpp -o /tmp/transport-state-test
+          /tmp/transport-state-test
       - run: python -m mini_journal --demo
       - run: pio run -d firmware
       - run: pio run -d firmware -t buildfs
