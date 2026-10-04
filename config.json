@@ -2,7 +2,7 @@
   "timezone": "Europe/Paris",
   "max_age_hours": 36,
   "max_candidates_per_section": 9,
-  "openrouter_model": "openrouter/free",
+  "openrouter_model": "nvidia/nemotron-3-super-120b-a12b:free",
   "ai": {
     "max_tokens": 16384,
     "retry_max_tokens": 32768,

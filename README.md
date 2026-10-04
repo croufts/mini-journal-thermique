@@ -55,7 +55,7 @@ Les workflows planifiés des dépôts publics peuvent être désactivés après 
 
 ### Génération du texte
 
-OpenRouter est le seul fournisseur. Le script accepte uniquement `openrouter/free` ou un identifiant se terminant par `:free`. Aucun modèle payant ni secours RSS brut n’est utilisé.
+OpenRouter est le seul fournisseur. Le modèle initial est `nvidia/nemotron-3-super-120b-a12b:free`, validé sur une génération réelle. Le script accepte uniquement `openrouter/free` ou un identifiant se terminant par `:free`. Aucun modèle payant ni secours RSS brut n’est utilisé. Le routeur gratuit sert de reprise en cas d’échec.
 
 1. **Sélection** : l’IA choisit seulement les identifiants des nouvelles importantes, sans doublons entre rubriques. Elle vise deux informations FRANCE, deux MONDE et exactement une TECH ; une troisième nouvelle générale est possible si elle est essentielle.
 2. **Rédaction** : seuls les candidats retenus sont transmis pour produire des titres précis et des phrases complètes, fondées sur leurs extraits. Cibles : 50 caractères par titre, 180 par résumé ; limites finales : 65 et 240 caractères, 220 mots pour toute l’édition.
