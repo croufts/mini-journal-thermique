@@ -19,10 +19,6 @@ on:
         description: 'Publier pour impression (décocher pour tester seulement)'
         type: boolean
         default: true
-      require_ai:
-        description: 'Exiger une sélection IA, sans secours RSS'
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -55,21 +51,15 @@ jobs:
         if: steps.gate.outputs.due == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           JOURNAL_GREETING: ${{ vars.JOURNAL_GREETING }}
-          REQUIRE_AI: ${{ inputs.require_ai || 'false' }}
-        run: |
-          if [ "$REQUIRE_AI" = "true" ]; then
-            python -m mini_journal --require-ai
-          else
-            python -m mini_journal
-          fi
+        run: python -m mini_journal
       - name: Conserver l’aperçu pour diagnostic
-        if: steps.gate.outputs.due == 'true'
+        if: always() && steps.gate.outputs.due == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: journal-${{ github.run_id }}
           path: out/
+          if-no-files-found: warn
           retention-days: 3
       - name: Publier sur la branche journal
         if: steps.gate.outputs.due == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
