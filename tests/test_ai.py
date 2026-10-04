@@ -149,6 +149,10 @@ def test_observed_telegraphic_title_is_repaired(setup):
     assert articles == VALID and d["repairs"][0][0]["id"] == "france"
 
 
+def test_grammar_guard_accepts_refusing_a_noun():
+    ai.check_complete("Le gouvernement refuse notre proposition", "Il refuse cette offre.")
+
+
 def test_repair_cannot_replace_valid_articles(setup):
     bad = deepcopy(VALID)
     bad["tech"][0]["summary"] = "Sans ponctuation"
