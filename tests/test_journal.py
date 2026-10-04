@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-import requests
 from PIL import Image
 
 from mini_journal import ai
@@ -104,46 +103,6 @@ def test_complete_sentence_fitting_preserves_negation():
     assert ai.complete_sentences("Les géants ne privilégient pas la recherche.", 20) == ""
 
 
-def response(content):
-    mock = Mock()
-    mock.json.return_value = {"choices": [{"message": {"content": json.dumps(content)}}]}
-    return mock
-
-
-def test_openrouter_failure_falls_back_to_groq(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter")
-    monkeypatch.setenv("GROQ_API_KEY", "test-groq")
-    monkeypatch.setattr(ai.time, "sleep", lambda _: None)
-    post = Mock(side_effect=[requests.Timeout(), response({}), response(VALID), response(VALID)])
-    monkeypatch.setattr(ai.requests, "post", post)
-    articles, provider = ai.select(CANDIDATES, CONFIG)
-    assert provider == "Groq" and articles == VALID
-    assert post.call_args_list[0].args[0].startswith("https://openrouter.ai/")
-    assert post.call_args_list[2].args[0].startswith("https://api.groq.com/")
-
-
-def test_editorial_review_output_is_used(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter")
-    corrected = deepcopy(VALID)
-    corrected["world"][0]["title"] = "Une formulation relue et complète"
-    draft = deepcopy(VALID)
-    draft["world"][0]["title"] = "Une formulation terminée par la"
-    post = Mock(side_effect=[response(draft), response(corrected)])
-    monkeypatch.setattr(ai.requests, "post", post)
-    articles, provider = ai.select(CANDIDATES, CONFIG)
-    assert articles == corrected and provider == "OpenRouter"
-    assert post.call_count == 2
-
-
-def test_rss_fallback_no_keys_and_paid_model_guard(monkeypatch):
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    articles, provider = ai.select(CANDIDATES, CONFIG)
-    assert provider == "RSS (secours)" and len(articles["tech"]) == 1
-    with pytest.raises(ValueError): ai.select(CANDIDATES, {**CONFIG, "openrouter_model": "paid-model"})
-    with pytest.raises(RuntimeError): ai.select(CANDIDATES, {**CONFIG, "allow_rss_fallback": False})
-
-
 def test_feed_filters_old_undated_future_and_html():
     xml = b'''<rss version="2.0"><channel><title>Feed</title>
     <item><title>Recent &amp; useful</title><description>&lt;b&gt;Text&lt;/b&gt;</description><pubDate>Tue, 29 Sep 2026 04:00:00 GMT</pubDate></item>
@@ -167,10 +126,12 @@ def test_publication_rejects_demo_and_corruption(tmp_path):
     wire = encode(Image.new("1", (626, 30), 1))
     digest = hashlib.sha256(wire).hexdigest()
     name = f"journal-2026-09-29-{digest[:16]}.bin"
-    manifest = {"schema": 1, "demo": False, "date": "2026-09-29", "sha256": digest,
+    manifest = {"schema": 1, "demo": False, "provider": "OpenRouter", "date": "2026-09-29", "sha256": digest,
                 "file": name, "size": len(wire), "width": 626, "height": 30}
     (tmp_path / name).write_bytes(wire)
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+    (tmp_path / "edition.json").write_text(json.dumps({"provider": "OpenRouter"}))
+    (tmp_path / "ai-diagnostics.json").write_text(json.dumps({"status": "validated"}))
     assert name in checked_artifacts(tmp_path)
     (tmp_path / name).write_bytes(wire[:-1])
     with pytest.raises(ValueError): checked_artifacts(tmp_path)
@@ -179,73 +140,12 @@ def test_publication_rejects_demo_and_corruption(tmp_path):
     with pytest.raises(ValueError): checked_artifacts(tmp_path)
 
 
-def test_rss_fallback_preserves_long_headlines_as_whole_sentences():
-    candidates = deepcopy(CANDIDATES)
-    for c in candidates:
-        c["title"] = "Une information importante avec un titre complet qui dépasse largement la limite de soixante-cinq caractères"
-    edition = ai.rss_fallback(candidates)
-    for c in candidates:
-        article = edition[c["section"]][0]
-        assert len(article["title"]) <= 65
-        assert article["summary"] == c["title"] + "."
-    assert len(edition["tech"]) == 1
-
-
-def test_openrouter_retries_with_compatible_json_mode(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    monkeypatch.setattr(ai.time, "sleep", lambda _: None)
-    def response(value):
-        r = Mock()
-        r.json.return_value = {"choices": [{"message": {"content": json.dumps(value)}, "finish_reason": "stop"}]}
-        return r
-    post = Mock(side_effect=[requests.Timeout(), response(VALID), response(VALID)])
-    monkeypatch.setattr(ai.requests, "post", post)
-    assert ai.select(CANDIDATES, CONFIG)[1] == "OpenRouter"
-    assert post.call_args_list[0].kwargs["json"]["response_format"]["type"] == "json_schema"
-    assert post.call_args_list[1].kwargs["json"]["response_format"]["type"] == "json_object"
-    assert "reasoning" not in post.call_args_list[1].kwargs["json"]
-
-
-def test_rss_fallback_avoids_entertainment_in_tech():
-    candidates = deepcopy(CANDIDATES)
-    candidates.append({**candidates[2], "id": "netflix", "title": "Une série Netflix annonce sa saison 3", "published": "2026-09-30T04:00:00+00:00"})
-    assert ai.rss_fallback(candidates)["tech"][0]["id"] == "id-tech"
-
-
-def test_reasoning_required_model_can_select_and_review(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    calls = []
-    def reasoning_endpoint(*args, **kwargs):
-        payload = deepcopy(kwargs["json"])
-        calls.append(payload)
-        # Reproduce the provider's actual HTTP 400 condition.
-        if payload.get("reasoning", {}).get("enabled") is False:
-            raise requests.HTTPError("Reasoning is mandatory for this endpoint")
-        r = Mock()
-        r.json.return_value = {"model": "nvidia/nemotron-3-super-120b-a12b:free",
-            "choices": [{"message": {"content": json.dumps(VALID)}, "finish_reason": "stop"}]}
-        return r
-    monkeypatch.setattr(ai.requests, "post", reasoning_endpoint)
-    assert ai.select(CANDIDATES, {**CONFIG, "allow_rss_fallback": False})[1] == "OpenRouter"
-    assert len(calls) == 2
-    assert calls[0]["model"] == "openrouter/free"
-    assert calls[1]["model"] == "nvidia/nemotron-3-super-120b-a12b:free"
-    assert len(calls[0]["messages"]) == 2 and len(calls[1]["messages"]) == 4
-
-
-def test_long_draft_reaches_review_without_truncation(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    draft = deepcopy(VALID)
-    draft["tech"][0]["title"] = "Un titre volontairement long qui doit être reformulé par la relecture sans couper le dernier mot"
-    post = Mock(side_effect=[response(draft), response(VALID)])
-    monkeypatch.setattr(ai.requests, "post", post)
-    assert ai.select(CANDIDATES, CONFIG)[0] == VALID
-    reviewed_input = json.loads(post.call_args_list[1].kwargs["json"]["messages"][2]["content"])
-    assert reviewed_input["tech"][0]["title"] == draft["tech"][0]["title"]
-    with pytest.raises(ValueError):
-        ai.validate(draft, CANDIDATES)
+def test_publication_rejects_unvalidated_or_rss_edition(tmp_path):
+    (tmp_path / "manifest.json").write_text(json.dumps({"schema": 1, "demo": False, "provider": "OpenRouter"}))
+    (tmp_path / "edition.json").write_text(json.dumps({"provider": "OpenRouter"}))
+    (tmp_path / "ai-diagnostics.json").write_text(json.dumps({"status": "failed"}))
+    with pytest.raises(ValueError, match="OpenRouter validée"):
+        checked_artifacts(tmp_path)
 
 
 def test_decoder_rejects_short_header_and_excess_feed():
