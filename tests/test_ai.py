@@ -153,6 +153,14 @@ def test_grammar_guard_accepts_refusing_a_noun():
     ai.check_complete("Le gouvernement refuse notre proposition", "Il refuse cette offre.")
 
 
+def test_source_name_is_repaired_without_dropping_the_news(setup):
+    bad = deepcopy(VALID)
+    bad["france"][0]["summary"] = "Selon Le Monde, les autorités annoncent une décision."
+    articles, _, _, d = setup([response(SELECTION), response(bad), response(bad),
+                               response({"articles": [VALID["france"][0]]})])
+    assert articles == VALID and "média" in d["repairs"][0][0]["motifs"][0]
+
+
 def test_repair_cannot_replace_valid_articles(setup):
     bad = deepcopy(VALID)
     bad["tech"][0]["summary"] = "Sans ponctuation"
