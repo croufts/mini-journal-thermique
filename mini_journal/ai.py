@@ -21,6 +21,9 @@ TECH : exactement une information technologique importante.
 Titres précis et naturels, cible 50 caractères, maximum 65. Résumés : une ou deux phrases
 complètes, cible 180 caractères, maximum 240. Maximum 220 mots pour toute l'édition.
 Garde les noms, chiffres et nuances utiles ; ne complète pas une information manquante.
+Un titre porte une seule idée principale ; place les autres détails dans le résumé.
+Écris un français naturel, avec les articles et prépositions nécessaires, sans style
+télégraphique. Exemple : « Wauquiez refuse de taxer les retraités », jamais « refuse taxer retraités ».
 Pas de source, URL, icône, emoji ou météo. Pas de nom de média cité dans le texte.
 Reformule pour raccourcir ; ne coupe jamais un mot, une phrase ou une négation.
 Rends seulement le JSON demandé, sans commentaire."""
@@ -32,6 +35,8 @@ def free_model(model):
 
 def check_complete(title, summary):
     for text in (title, summary):
+        if re.search(r"\b(?:refuse|refusent|refusé)\s+[a-zà-ÿ]+(?:er|ir|re)\b", text.lower()):
+            raise ValueError("Texte grammaticalement incomplet : préposition après refuser")
         ending = text.lower().rstrip(" .!?;:…»\"")
         if re.search(r"(?:\b(?:le|la|les|un|une|du|des|de|à|au|aux|dans|pour|avec|sur|et|ou)|d[’'](?:un|une))$", ending):
             raise ValueError("Texte grammaticalement incomplet : mot de liaison final")
