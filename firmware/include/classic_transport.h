@@ -11,7 +11,8 @@
 class JournalClassic {
   BluetoothSerial serial;
   SemaphoreHandle_t completed = xSemaphoreCreateBinary();
-  uint8_t packet[512];
+  // Use Arduino BluetoothSerial's packet size and transmit queue.
+  uint8_t packet[330];
   size_t buffered = 0, accepted = 0;
   volatile uint32_t handle = 0, acknowledged = 0;
   volatile bool congested = false, failed = false;
@@ -23,7 +24,10 @@ class JournalClassic {
     if (type == ESP_SPP_OPEN_EVT) {
       self->handle = p->open.status == ESP_SPP_SUCCESS ? p->open.handle : 0;
       self->congested = false;
-    } else if (type == ESP_SPP_CLOSE_EVT) { self->handle = 0; self->failed = true; }
+    } else if (type == ESP_SPP_CLOSE_EVT) {
+      Serial.printf("[SPP] Fermeture statut=%d distante=%d ACK=%u\n", int(p->close.status), int(p->close.async), unsigned(self->acknowledged));
+      self->handle = 0; self->failed = true;
+    }
     else if (type == ESP_SPP_CONG_EVT) self->congested = p->cong.cong;
     else if (type == ESP_SPP_WRITE_EVT) {
       self->congested = p->write.cong;
@@ -36,12 +40,12 @@ class JournalClassic {
     uint32_t start = millis();
     while (congested && connected() && !failed && millis() - start < 15000UL) delay(1);
     if (!connected() || failed || congested ||
-        esp_spp_write(handle, buffered, packet) != ESP_OK) return false;
+        serial.write(packet, buffered) != buffered) return false;
     accepted += buffered;
     start = millis();
     while (acknowledged < accepted && connected() && !failed && millis() - start < 15000UL) delay(1);
     if (failed || !connected() || acknowledged < accepted) {
-      Serial.printf("[SPP] Envoi non confirme : ACK=%u attendu=%u\n", unsigned(acknowledged), unsigned(accepted));
+      Serial.printf("[SPP] Envoi non confirme : ACK=%u attendu=%u connecte=%d erreur=%d congestion=%d attente=%u ms\n", unsigned(acknowledged), unsigned(accepted), int(connected()), int(failed), int(congested), unsigned(millis() - start));
       return false;
     }
     buffered = 0;
