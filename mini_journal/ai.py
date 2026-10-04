@@ -159,8 +159,8 @@ def article_schema(identities):
 
 
 def sections_schema(candidates, selection=False):
-    return object_schema({s: {"type": "array", "minItems": 1,
-        "maxItems": 1 if s == "tech" else 3,
+    return object_schema({s: {"type": "array", "minItems": 1 if selection else sum(c["section"] == s for c in candidates),
+        "maxItems": (1 if s == "tech" else 3) if selection else sum(c["section"] == s for c in candidates),
         "items": {"type": "string", "enum": [c["id"] for c in candidates if c["section"] == s]}
         if selection else article_schema([c["id"] for c in candidates if c["section"] == s])}
         for s in SECTIONS})
