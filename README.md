@@ -116,7 +116,7 @@ Un envoi interrompu bloque les nouvelles tentatives **pour la journée concerné
 
 Le générateur produit un canevas de **626 pixels**, limité à 2362 pixels de haut. La hauteur est ajustée au contenu et les phrases ne sont pas coupées pour remplir la page. Si nécessaire, la taille des caractères diminue, puis les dernières nouvelles générales sont retirées en conservant chaque rubrique.
 
-Le fichier cache conserve son format historique en bandes. Le firmware adapte horizontalement les 626 pixels à **576 points** et transmet **une seule image raster continue**. Les paquets SPP de 512 octets sont confirmés et respectent la congestion, sans pause fixe. La fin d’image est confirmée avant de mémoriser l’impression.
+Le fichier cache conserve son format historique en bandes. Le firmware adapte horizontalement les 626 pixels à **576 points** et transmet **une seule image raster continue**. Les paquets SPP de 330 octets passent par la file de transmission BluetoothSerial. Chaque envoi est confirmé et respecte la congestion, sans pause fixe. La fin d’image est confirmée avant de mémoriser l’impression.
 
 Le SHA-256 détecte un téléchargement incomplet et deux emplacements en flash permettent de conserver l’ancien cache pendant le suivant. Ces contrôles concernent les données ; un ticket pâle ou un manque de papier doit être vérifié sur l’imprimante.
 
