@@ -7,7 +7,7 @@ Le ticket contient une salutation personnalisable, la date, **FRANCE**, **MONDE*
 ## Fonctionnement
 
 ```text
-GitHub Actions → RSS → OpenRouter (ou Groq) → sélection et relecture
+GitHub Actions → RSS → OpenRouter gratuit → sélection → rédaction → relecture/corrections
               → mise en page → branche publique journal
                                       ↓ HTTPS
                             ESP32 : cache en flash
@@ -28,7 +28,7 @@ CH340 désigne l’interface USB. Un ESP8266 ou un ESP32 sans Bluetooth Classic 
 ## Installer sur GitHub
 
 1. Copier ou forker le dépôt dans un dépôt **public** et activer GitHub Actions.
-2. Dans **Settings → Secrets and variables → Actions**, ajouter le secret `OPENROUTER_API_KEY`. `GROQ_API_KEY` est facultatif, pour un second fournisseur.
+2. Dans **Settings → Secrets and variables → Actions**, ajouter le secret `OPENROUTER_API_KEY`.
 3. Facultatif : dans l’onglet **Variables**, définir `JOURNAL_GREETING`, par exemple `Bonjour Camille.`. Sans variable, la salutation vient de `config.json` et vaut `Bonjour.`.
 4. Lancer **Actions → Journal quotidien → Run workflow**.
 5. Vérifier l’aperçu dans les artifacts et le manifeste public :
@@ -37,9 +37,9 @@ CH340 désigne l’interface USB. Un ESP8266 ou un ESP32 sans Bluetooth Classic 
 https://raw.githubusercontent.com/TON_COMPTE/mini-journal-thermique/refs/heads/journal/manifest.json
 ```
 
-Le workflow indique le fournisseur utilisé, y compris `RSS (secours)` si les API échouent. La branche `journal` contient uniquement la dernière édition. Les clés API restent dans les secrets GitHub ; l’ESP32 n’en a pas besoin.
+Le workflow publie uniquement une édition rédigée par OpenRouter et validée. En cas d’échec, aucune nouvelle édition n’est publiée ; les rattrapages pourront réessayer. La branche `journal` contient uniquement la dernière édition. Les clés API restent dans les secrets GitHub ; l’ESP32 n’en a pas besoin.
 
-Le mode manuel permet de forcer une nouvelle édition, de **décocher la publication pour tester sans imprimer**, et d’exiger une IA pour vérifier le service sans secours RSS. Le test utilise le même générateur que le journal quotidien.
+Le mode manuel permet de forcer une nouvelle édition, de **décocher la publication pour tester sans imprimer**. L’IA est obligatoire dans tous les cas. Le test utilise le même générateur que le journal quotidien.
 
 ## Horaires et configuration
 
@@ -53,9 +53,21 @@ Les workflows planifiés des dépôts publics peuvent être désactivés après 
 
 `config.json` contient les flux, le fuseau, l’âge maximal des nouvelles, les modèles et la mise en page. Par défaut : sept flux, nouvelles des dernières 36 heures, neuf candidats maximum par rubrique. Les sources sans date ou indisponibles sont ignorées ; chaque rubrique doit conserver au moins un candidat.
 
-OpenRouter utilise `openrouter/free` ou un modèle se terminant par `:free`. La sélection est relue avec le même modèle gratuit lorsque son identifiant est retourné. Le code respecte les modèles qui imposent le raisonnement. Groq est facultatif et doit être utilisé avec un compte gratuit. Les quotas restent ceux des fournisseurs.
+### Génération du texte
 
-Si `allow_rss_fallback` vaut `true`, une indisponibilité IA produit une **édition de secours RSS**, signalée sur le ticket. Ce secours utilise des titres et phrases RSS entiers ; il ne remplace pas la sélection éditoriale de l’IA. Mettre l’option à `false` pour ne rien publier en cas d’échec IA.
+OpenRouter est le seul fournisseur. Le script accepte uniquement `openrouter/free` ou un identifiant se terminant par `:free`. Aucun modèle payant ni secours RSS brut n’est utilisé.
+
+1. **Sélection** : l’IA choisit seulement les identifiants des nouvelles importantes, sans doublons entre rubriques. Elle vise deux informations FRANCE, deux MONDE et exactement une TECH ; une troisième nouvelle générale est possible si elle est essentielle.
+2. **Rédaction** : seuls les candidats retenus sont transmis pour produire des titres précis et des phrases complètes, fondées sur leurs extraits. Cibles : 50 caractères par titre, 180 par résumé ; limites finales : 65 et 240 caractères, 220 mots pour toute l’édition.
+3. **Relecture** : un appel distinct vérifie les faits à partir des candidats, le français, les répétitions et les longueurs, sans changer les identifiants ni leur ordre. Une relecture inutilisable ne remplace pas un article déjà valide. Si la relecture est indisponible, le brouillon IA reste utilisable seulement s’il passe les contrôles locaux ; cette dégradation est signalée dans les diagnostics.
+4. **Corrections ciblées** : seuls les articles ayant un défaut sont reformulés, avec le motif et les longueurs mesurées. Les autres textes sont conservés. Jusqu’à deux passes sont possibles. Si toute l’édition dépasse 220 mots, ses textes sont condensés en gardant la sélection.
+5. **Validation et publication** : chaque rubrique, identifiant, longueur et fin de phrase est contrôlé. Aucun texte n’est coupé pour faire passer la validation. Une édition encore invalide échoue et ne remplace pas le journal publié.
+
+L’identifiant gratuit effectivement retourné est conservé pour les étapes suivantes. En cas d’échec, une nouvelle tentative peut revenir au routeur gratuit et utiliser un mode JSON plus compatible, toujours contrôlé localement. Les budgets se règlent dans `config.json` : **16 384 tokens** par appel, **32 768** en reprise, **8 appels maximum** et **480 secondes** pour l’ensemble de la génération. Le raisonnement demandé est faible, sans le désactiver pour les modèles qui l’imposent. Les tokens de raisonnement partagent généralement le budget de sortie ; plus de tokens n’allongent pas le texte imprimé.
+
+Le gratuit reste soumis à la disponibilité et aux quotas OpenRouter. Une erreur d’authentification, de crédit ou de quota arrête les appels de l’étape plutôt que de multiplier les essais immédiats. Une journée réussie utilise normalement trois appels, puis la garde de date évite les générations suivantes. Les rattrapages d’une journée en échec peuvent consommer d’autres appels.
+
+L’artifact `out/ai-diagnostics.json` conserve les étapes, modèles, motifs de rejet, tokens de sortie et de raisonnement lorsqu’ils sont fournis par l’API. Il est disponible même après un échec de génération. Les clés et réponses brutes ne sont pas enregistrées. Le contrôle automatique ne garantit pas l’exactitude de chaque reformulation : la richesse du journal reste limitée aux extraits RSS fournis.
 
 ## Configurer l’ESP32
 
@@ -93,7 +105,7 @@ Une mise à jour normale nécessite uniquement `upload` : `uploadfs` remplace le
 .\.venv\Scripts\python.exe -m mini_journal --check-feeds
 ```
 
-`out/preview.png` montre le résultat. La démo est fictive, hors ligne et ne peut pas être publiée par le script. Pour tester l’IA localement, définir `OPENROUTER_API_KEY` dans l’environnement puis lancer `python -m mini_journal --require-ai`.
+`out/preview.png` montre le résultat. La démo est fictive, hors ligne et ne peut pas être publiée par le script. Pour tester l’IA localement, définir `OPENROUTER_API_KEY` dans l’environnement puis lancer `python -m mini_journal`.
 
 Pour valider l’installation : laisser l’imprimante éteinte pendant le téléchargement, vérifier `STATUS`, puis l’allumer. Le journal doit sortir complet. Un deuxième allumage et un redémarrage de l’ESP32 ne doivent pas réimprimer la même journée. Terminer par un essai avec l’ESP32 alimenté indépendamment du PC.
 

@@ -3,8 +3,12 @@
   "max_age_hours": 36,
   "max_candidates_per_section": 9,
   "openrouter_model": "openrouter/free",
-  "groq_model": "openai/gpt-oss-20b",
-  "allow_rss_fallback": true,
+  "ai": {
+    "max_tokens": 16384,
+    "retry_max_tokens": 32768,
+    "max_calls": 8,
+    "max_seconds": 480
+  },
   "printer": {
     "width": 626,
     "height": 2362,
