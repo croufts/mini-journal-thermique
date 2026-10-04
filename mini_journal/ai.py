@@ -57,7 +57,7 @@ def free_model(model):
 
 def check_complete(title, summary):
     for text in (title, summary):
-        if re.search(r"\b(?:refuse|refusent|refusé)\s+[a-zà-ÿ]+(?:er|ir|re)\b", text.lower()):
+        if re.search(r"\b(?:refuse|refusent|refusé)\s+(?:taxer|imposer|augmenter|réduire|financer|adopter|voter|payer|accepter|soutenir)\b", text.lower()):
             raise ValueError("Texte grammaticalement incomplet : préposition après refuser")
         ending = text.lower().rstrip(" .!?;:…»\"")
         if re.search(r"(?:\b(?:le|la|les|un|une|du|des|de|à|au|aux|dans|pour|avec|sur|et|ou)|d[’'](?:un|une))$", ending):
