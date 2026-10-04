@@ -120,6 +120,8 @@ def test_selection_rejects_duplicates_wrong_sections_and_unhashable_ids():
 
 def test_draft_order_is_restored_but_missing_articles_are_rejected():
     selected = CANDIDATES + [{**CANDIDATES[0], "id": "france2"}]
+    schema = ai.sections_schema(selected)["properties"]["france"]
+    assert schema["minItems"] == schema["maxItems"] == 2
     draft = deepcopy(VALID)
     draft["france"].insert(0, {**VALID["france"][0], "id": "france2"})
     restored = ai.preserve_selection(draft, selected)
@@ -168,6 +170,13 @@ def test_request_budget_is_bounded(setup):
     bad["tech"][0]["summary"] = "Sans ponctuation"
     with pytest.raises(RuntimeError, match="Budget"):
         setup([response(SELECTION), response(bad), response(bad)], {**CONFIG, "ai": {"max_calls": 3}})
+
+
+@pytest.mark.skipif(not hasattr(ai.signal, "SIGALRM"), reason="Linux runner wall-clock protection")
+def test_keep_alive_cannot_extend_request_forever():
+    with pytest.raises(requests.Timeout, match="Durée maximale"):
+        with ai.request_deadline(.02):
+            ai.time.sleep(.1)
 
 
 def test_word_budget_is_repaired_without_truncating_sentences(setup):
