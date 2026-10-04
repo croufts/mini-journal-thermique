@@ -300,6 +300,56 @@ struct SuspendWifiForPrint {
   }
 };
 
+// A single bounded NVS record, never one flash write per Bluetooth packet.
+// Repeated identical connection failures keep the first report to avoid wear.
+bool savePrintDiagnostic(const char *outcome, const char *kind = "journal") {
+  if (!storageReady) return false;
+  auto d = printer.diagnostic();
+  char received[sizeof(d.received) * 2 + 1] = {};
+  for (size_t i = 0; i < d.receivedCount; ++i) snprintf(received + i * 2, 3, "%02x", d.received[i]);
+  StaticJsonDocument<1024> record;
+  record["schema"] = 1;
+  record["type"] = kind;
+  record["date"] = today();
+  record["hash"] = cachedHash.substring(0, 16);
+  record["resultat"] = outcome;
+  record["phase"] = JournalTransport::phaseName(d.phase);
+  record["cause"] = JournalTransport::failureName(d.failure);
+  record["octets_envoyes"] = d.accepted;
+  record["octets_confirmes"] = d.acknowledged;
+  record["octets_prevus"] = d.expected;
+  record["lignes_lues"] = d.rows;
+  record["statut_ecriture"] = d.writeStatus;
+  record["statut_fermeture"] = d.closeStatus;
+  record["fermeture_distante"] = d.remoteClose;
+  record["fin_image"] = d.imageCompleted;
+  record["derniere_reponse_hex"] = received;
+  String signature;
+  serializeJson(record, signature);
+  // Times and event counters don't make an otherwise identical failure worth
+  // another flash write. They remain in every newly stored report.
+  String previous = prefs.getString("printSig", "");
+  if (signature == previous && !prefs.getString("lastPrint", "").isEmpty()) return true;
+  record["duree_ms"] = d.elapsed;
+  record["heure_unix"] = uint32_t(time(nullptr));
+  record["evenements_ignores"] = d.ignoredEvents;
+  record["fins_image_prematurees"] = d.earlyCompletions;
+  String report;
+  serializeJson(record, report);
+  if (record.overflowed() || prefs.putString("lastPrint", report) != report.length()) {
+    Serial.println("[DIAGNOSTIC] Impossible de conserver le compte rendu en NVS"); return false;
+  }
+  prefs.putString("printSig", signature);
+  Serial.printf("[DIAGNOSTIC] %s\n", report.c_str());
+  return true;
+}
+
+void showPrintDiagnostic() {
+  String report = storageReady ? prefs.getString("lastPrint", "") : "";
+  if (report.isEmpty()) Serial.println("[DIAGNOSTIC] Aucun compte rendu memorise");
+  else Serial.printf("[DIAGNOSTIC] Derniere tentative : %s\n", report.c_str());
+}
+
 void printIfReady() {
   String day = today();
   if (storageReady && !day.isEmpty()) {
@@ -317,6 +367,7 @@ void printIfReady() {
   }
   SuspendWifiForPrint wifiPause;
   if (!connectPrinter()) {
+    savePrintDiagnostic("connexion-refusee");
     printer.disconnect();
     Serial.println("[SPP] Imprimante éteinte ou connexion refusée");
     job.close();
@@ -330,12 +381,24 @@ void printIfReady() {
     return;
   }
   connectionFailures = 0;
+  if (!printer.prepare(printDensity)) {
+    savePrintDiagnostic("preparation-echouee");
+    Serial.println("[SPP] Preparation interrompue avant l'image ; nouvelle connexion au prochain cycle");
+    job.close(); printer.disconnect(); return;
+  }
   if (prefs.putString("pending", day) != day.length()) {
     Serial.println("[NVS] Impossible de mémoriser l'envoi ; impression annulée");
     job.close(); printer.disconnect(); return;
   }
-  bool ok = printer.send(job, printDensity);
+  // Persist the start as well: a sudden power cut must leave evidence even
+  // without a serial monitor. Exact counters are saved when send() returns.
+  if (!savePrintDiagnostic("en-cours")) {
+    Serial.println("[IMPRESSION] Envoi annule : diagnostic non memorise ; blocage incertain conserve");
+    job.close(); printer.disconnect(); return;
+  }
+  bool ok = printer.send(job);
   job.close();
+  savePrintDiagnostic(ok ? "transmission-confirmee" : "envoi-incertain");
   if (ok && prefs.putString("printed", day) == day.length()) {
     prefs.remove("pending");
     wifiIdleDay = day;
@@ -344,7 +407,10 @@ void printIfReady() {
     WiFi.mode(WIFI_OFF);
     Serial.println("[WIFI] Coupe apres impression confirmee, jusqu'au prochain jour ou une commande explicite");
     Serial.printf("[IMPRESSION] Journal %s transmis, fin du raster continu reçue, anti-doublon enregistré\n", day.c_str());
-  } else Serial.println("[IMPRESSION] Envoi incertain. Pas de nouvel essai automatique. Vérifier le papier puis RETRY.");
+  } else {
+    if (ok) savePrintDiagnostic("anti-doublon-non-memorise");
+    Serial.println("[IMPRESSION] Envoi incertain. Pas de nouvel essai automatique. Vérifier le papier puis RETRY.");
+  }
   printer.disconnect();
 }
 
@@ -366,7 +432,9 @@ void printCalibration() {
   ok = ok && job && job.size() == sizeof(calibrationTicket) && JournalClassic::validate(job);
   if (ok) {
     SuspendWifiForPrint wifiPause;
-    ok = connectPrinter() && printer.send(job, printDensity);
+    ok = connectPrinter() && printer.prepare(printDensity);
+    if (ok) ok = savePrintDiagnostic("en-cours", "calibration") && printer.send(job);
+    savePrintDiagnostic(ok ? "transmission-confirmee" : "echec", "calibration");
     printer.disconnect();
   }
   job.close(); LittleFS.remove(path);
@@ -380,6 +448,7 @@ void command(const String &line) {
       today().c_str(), cachedDate.c_str(), WiFi.status() == WL_CONNECTED ? "OK" : "hors ligne",
       prefs.getString("printed", "").c_str(), prefs.getString("pending", "").c_str(), printDensity,
       cachedHash.substring(0, 16).c_str(), refreshBeforePrint ? "requise" : "OK");
+    showPrintDiagnostic();
   } else if (line.length() == 9 && line.startsWith("DENSITY ") && line[8] >= '0' && line[8] <= '4') {
     printDensity = line[8] - '0';
     if (storageReady) prefs.putUChar("density", printDensity);
