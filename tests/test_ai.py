@@ -118,6 +118,16 @@ def test_selection_rejects_duplicates_wrong_sections_and_unhashable_ids():
             ai.validate_selection({**SELECTION, "tech": ids}, CANDIDATES)
 
 
+def test_observed_telegraphic_title_is_repaired(setup):
+    bad = deepcopy(VALID)
+    bad["france"][0]["title"] = "Wauquiez refuse taxer retraités"
+    with pytest.raises(ValueError, match="préposition"):
+        ai.validate(bad, CANDIDATES)
+    articles, _, _, d = setup([response(SELECTION), response(bad), response(bad),
+                               response({"articles": [VALID["france"][0]]})])
+    assert articles == VALID and d["repairs"][0][0]["id"] == "france"
+
+
 def test_repair_cannot_replace_valid_articles(setup):
     bad = deepcopy(VALID)
     bad["tech"][0]["summary"] = "Sans ponctuation"
