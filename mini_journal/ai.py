@@ -163,8 +163,13 @@ def validate_selection(value, candidates):
 
 def preserve_selection(value, selected):
     articles = validate(value, selected, editorial=False)
-    if any([a["id"] for a in articles[s]] != [c["id"] for c in selected if c["section"] == s] for s in SECTIONS):
-        raise ValueError("La rédaction a modifié la sélection ou son ordre")
+    for section in SECTIONS:
+        expected = [c["id"] for c in selected if c["section"] == section]
+        by_id = {a["id"]: a for a in articles[section]}
+        if set(by_id) != set(expected):
+            raise ValueError("La rédaction a modifié la sélection")
+        # Model ordering is harmless: restore the editorial selection locally.
+        articles[section] = [by_id[identity] for identity in expected]
     return articles
 
 
@@ -295,8 +300,9 @@ def select(candidates, config, diagnostics=None):
                 patches = value["articles"]
                 if any(not isinstance(a, dict) or set(a) != {"id", "title", "summary"} for a in patches):
                     raise ValueError("Champs de correction invalides")
-                if [a["id"] for a in patches] != ids:
-                    raise ValueError("La correction a modifié les identifiants ou leur ordre")
+                patch_ids = [a["id"] for a in patches]
+                if any(not isinstance(identity, str) for identity in patch_ids) or len(patch_ids) != len(ids) or set(patch_ids) != set(ids):
+                    raise ValueError("La correction a modifié les identifiants")
                 merged = deepcopy(articles)
                 by_id = {a["id"]: a for a in patches}
                 for section in SECTIONS:
