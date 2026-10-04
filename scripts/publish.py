@@ -21,6 +21,10 @@ def checked_artifacts(output):
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("demo", True) or manifest.get("schema") != 1:
         raise ValueError("Une démonstration ne doit jamais être publiée")
+    edition = json.loads((output / "edition.json").read_text(encoding="utf-8"))
+    diagnostics = json.loads((output / "ai-diagnostics.json").read_text(encoding="utf-8"))
+    if manifest.get("provider") != "OpenRouter" or edition.get("provider") != "OpenRouter" or diagnostics.get("status") != "validated":
+        raise ValueError("Seule une édition OpenRouter validée peut être publiée")
     date, digest = manifest["date"], manifest["sha256"]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) or not re.fullmatch(r"[a-f0-9]{64}", digest):
         raise ValueError("Date ou empreinte invalide")

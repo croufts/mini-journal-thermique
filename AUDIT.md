@@ -35,7 +35,7 @@
 ## Limites restantes
 
 1. La qualité éditoriale dépend du modèle gratuit et des extraits RSS. Le code ne peut pas certifier la grammaire ou la véracité de chaque reformulation ; les contrôles linguistiques restent ciblés.
-2. Une édition RSS de secours est définitive pour la journée, comme une édition IA : les rattrapages ne la remplacent pas automatiquement. Une régénération manuelle est possible.
+2. Une indisponibilité prolongée d’OpenRouter peut retarder ou empêcher l’édition du jour. Aucun secours RSS brut n’est publié. La garde de date ne s’applique qu’après publication réussie.
 3. Le format 626 pixels puis adaptation à 576 est conservé pour rester compatible avec les ESP32 déjà installés. Un passage entièrement natif à 576 demanderait une migration coordonnée du générateur et du firmware et un nouveau test papier. Il n’est pas nécessaire au fonctionnement actuel.
 4. GitHub Actions gratuit ne garantit pas une minute d’exécution. Le cycle est désormais réglé à 05:00 Europe/Paris avec adaptation saisonnière ; un déclenchement direct par l’ESP32 évite d’attendre le cron, mais nécessite un jeton Actions valide et une connexion Internet.
 5. Après coupure électrique, l’ESP32 doit retrouver Internet pour remettre son horloge à l’heure. Aucun composant RTC supplémentaire n’est prévu.
@@ -57,3 +57,12 @@ Le premier workflow de la journée a été lancé à 12:07 Paris, et publié à 
 ### Validation du 4 octobre 2026
 
 Le transfert direct par `esp_spp_write` restait sans confirmation après douze paquets, même avec une pause de 10 ms ou une taille de paquet réduite. Le transport utilise désormais `BluetoothSerial.write`, avec un seul paquet de 330 octets en attente et un contrôle de sa confirmation. Le journal complet du 4 octobre a été transmis : 2 319 lignes, 166 988 octets, 38,17 secondes. La fin de raster a été reçue, la journée mémorisée comme imprimée et le Wi-Fi coupé. La sortie physique a également été confirmée complète et lisible jusqu’à la section TECH.
+
+
+## Génération OpenRouter — 4 octobre 2026
+
+La génération est séparée en sélection d’identifiants, rédaction, relecture et corrections ciblées. Les articles conformes sont conservés lors des corrections ; un brouillon valide peut survivre à une panne de relecture, avec diagnostic explicite. Les limites imprimées restent à 65/240 caractères et 220 mots, tandis que le budget API augmente à 16 384 puis 32 768 tokens. Le nombre d’appels et le temps total sont bornés.
+
+Groq, sa configuration et le secours RSS brut sont retirés. Une réponse invalide ne publie plus une édition médiocre qui empêcherait les rattrapages du jour. Les diagnostics conservent le modèle, l’étape, les longueurs fautives et les tokens déclarés, sans clé ni réponse brute. Les échecs d’authentification ou de quota ne déclenchent pas une boucle immédiate.
+
+Ces changements concernent la génération du texte. L’essai matériel de 12h30 s’est arrêté après la salutation ; l’ESP a mémorisé un envoi incertain. La réussite matérielle consignée plus haut concerne le test précédent et ne valide pas ce nouveau cycle après coupure d’alimentation. Les tests d’impression sont arrêtés à la demande de l’utilisateur.
