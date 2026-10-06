@@ -11,6 +11,19 @@ State connected() {
 }
 
 int main() {
+  {
+    PacketPacer p;
+    assert(p.remaining(0) == 0);
+    p.sent(100, 330);
+    assert(p.remaining(100) == 110 && p.remaining(209) == 1);
+    assert(p.remaining(210) == 0);
+    // A delayed ACK allows one packet, not a burst that catches up lost time.
+    assert(p.remaining(5000) == 0);
+    p.sent(5000, 330); assert(p.remaining(5000) == 110);
+    p.sent(UINT32_MAX - 49, 330);
+    assert(p.remaining(50) == 10 && p.remaining(60) == 0);
+    p.sent(100, 1); assert(p.remaining(100) == 1);
+  }
   const uint8_t done[] = {0x1a, 0x0f, 0x0c};
   {
     auto s = connected(); s.beginWrite(330);

@@ -166,7 +166,35 @@ def test_repair_cannot_replace_valid_articles(setup):
     bad["tech"][0]["summary"] = "Sans ponctuation"
     with pytest.raises(RuntimeError, match="correction"):
         setup([response(SELECTION), response(bad), response(bad),
-               response({"articles": [VALID["france"][0]]}), response({"articles": [VALID["france"][0]]})])
+               response({"articles": [VALID["france"][0]]}), response({"articles": [VALID["france"][0]]}),
+               response({"articles": [VALID["france"][0]]})])
+
+
+def test_repair_survives_interrupted_response_and_malformed_retry(setup):
+    bad = deepcopy(VALID)
+    bad["tech"][0]["summary"] = "Résumé trop long. " * 20
+    articles, _, post, d = setup([
+        response(SELECTION), response(bad), response(bad),
+        requests.exceptions.ChunkedEncodingError("response interrupted"),
+        response({"unexpected": []}), response({"articles": [VALID["tech"][0]]})])
+    assert articles == VALID and d["status"] == "validated"
+    repair_calls = [c.kwargs["json"] for c in post.call_args_list[3:]]
+    assert [c["model"] for c in repair_calls] == ["tested/model:free", "tested/model:free", "openrouter/free"]
+    assert [c["response_format"]["type"] for c in repair_calls] == ["json_schema", "json_schema", "json_object"]
+    prompt = repair_calls[-1]["messages"][1]["content"]
+    schema = json.loads(prompt.split("SCHÉMA JSON À RESPECTER :\n")[1].split("\nDONNÉES :\n")[0])
+    assert schema["required"] == ["articles"]
+    assert schema["properties"]["articles"]["items"]["properties"]["id"]["enum"] == ["tech"]
+    assert len(d["calls"]) == 6
+
+
+def test_third_repair_attempt_respects_global_call_budget(setup):
+    bad = deepcopy(VALID)
+    bad["tech"][0]["summary"] = "Sans ponctuation"
+    with pytest.raises(RuntimeError, match="Budget"):
+        setup([response(SELECTION), response(bad), response(bad),
+               requests.Timeout(), response({"unexpected": []})],
+              {**CONFIG, "ai": {"max_calls": 5}})
 
 
 def test_unrepairable_article_fails_instead_of_rss(setup):
