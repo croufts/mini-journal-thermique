@@ -4,6 +4,22 @@
 #include <cstring>
 
 namespace JournalTransport {
+constexpr uint32_t RASTER_BYTES_PER_SECOND = 3000;
+
+// SPP ACKs confirm radio delivery, not consumption by the print mechanism.
+// Space packet starts without accumulating credit during stalls; millis wraps.
+struct PacketPacer {
+  uint32_t sentAt = 0, interval = 0;
+  uint32_t remaining(uint32_t now) const {
+    uint32_t elapsed = now - sentAt;
+    return elapsed < interval ? interval - elapsed : 0;
+  }
+  void sent(uint32_t now, uint32_t bytes) {
+    sentAt = now;
+    interval = (bytes * 1000 + RASTER_BYTES_PER_SECOND - 1) / RASTER_BYTES_PER_SECOND;
+  }
+};
+
 enum class Phase : uint8_t { idle, connecting, settling, initialization, raster, completion, feed, finished };
 enum class Failure : uint8_t { none, connection, disconnected, congestion, queue, writeStatus, ackLength,
                               ackTimeout, file, completionTimeout };
