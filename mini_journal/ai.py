@@ -220,7 +220,11 @@ class OpenRouter:
 
     def request(self, stage, instruction, data, schema, validator):
         correction = ""
-        for attempt in range(2):
+        compatible = False
+        # A repair must survive a transport failure followed by a malformed
+        # fallback response, within the same global call/time budgets.
+        attempts = 3 if stage == "correction" else 2
+        for attempt in range(attempts):
             remaining = self.deadline - time.monotonic()
             if len(self.diagnostics["calls"]) >= self.max_calls or remaining < 5:
                 raise RuntimeError("Budget de tentatives IA épuisé ; aucune publication")
@@ -228,10 +232,12 @@ class OpenRouter:
                 "max_tokens": self.tokens if attempt == 0 else self.retry_tokens,
                 "reasoning": {"effort": "low"},
                 "messages": [{"role": "system", "content": SYSTEM},
-                    {"role": "user", "content": instruction + correction + "\nDONNÉES :\n" + json.dumps(data, ensure_ascii=False)}],
+                    {"role": "user", "content": instruction + correction +
+                     ("\nSCHÉMA JSON À RESPECTER :\n" + json.dumps(schema, ensure_ascii=False) if compatible else "") +
+                     "\nDONNÉES :\n" + json.dumps(data, ensure_ascii=False)}],
                 "response_format": {"type": "json_schema", "json_schema": {
                     "name": "mini_journal", "strict": True, "schema": schema}}}
-            if attempt == 0:
+            if not compatible:
                 payload["provider"] = {"require_parameters": True}
             else:
                 # Compatible fallback stays locally validated, and stays free.
@@ -272,9 +278,15 @@ class OpenRouter:
                 LOG.warning("IA étape=%s tentative=%d modèle=%s motif=%s HTTP=%s", stage, attempt + 1, event.get("model", self.model), event["reason"], status)
                 if status in (401, 402, 403, 429):
                     raise RuntimeError(f"OpenRouter HTTP {status} ; reprise lors d'un prochain cycle") from exc
-                correction = "\nCorrige ce défaut : " + event["reason"] + ". Retourne un JSON complet."
-                self.model = "openrouter/free"
-                if attempt == 0:
+                correction = "\nCorrige ce défaut : " + event["reason"] + ". Respecte exactement le schéma JSON demandé."
+                transient = isinstance(exc, (requests.Timeout, requests.ConnectionError,
+                                             requests.exceptions.ChunkedEncodingError))
+                # A dropped HTTP response says nothing about model quality.
+                # Retry the working model with its strict schema first.
+                if not (transient and attempt == 0):
+                    self.model = "openrouter/free"
+                    compatible = True
+                if attempt + 1 < attempts:
                     time.sleep(min(3, max(0, self.deadline - time.monotonic())))
             finally:
                 event["seconds"] = round(time.monotonic() - started, 2)
