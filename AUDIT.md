@@ -76,3 +76,13 @@ Les événements d’écriture, congestion, fermeture et réception sont associ�
 Le dernier compte rendu de tentative est conservé en NVS et affiché par STATUS, avec phase, cause, compteurs, statuts et réponse reçue bornée à 16 octets. Le début est mémorisé avant l’image, puis le résultat remplace ce compte rendu. Une coupure brutale laisse un état « en-cours », pas des compteurs supposés exacts. Les écritures ne sont pas faites à chaque paquet ; les échecs de connexion identiques sont dédupliqués. Les gardes de journée imprimée et d’envoi incertain sont conservées.
 
 Ces changements sont vérifiés en logiciel et compilés pour ESP32. Ils ne sont pas téléversés sur l’ESP et aucune impression matérielle n’est déclenchée. La préparation et les délais doivent encore être validés lors d’un prochain essai papier autorisé.
+
+## Reprise après les incidents du 6 octobre 2026
+
+La validation matérielle du 4 octobre a ensuite été réalisée : l’édition OpenRouter est sortie complète et lisible. Cela n’a pas empêché deux incidents distincts le 6 octobre.
+
+Le run GitHub 37444522613 a échoué lors de la correction d’un résumé trop long : réponse HTTP interrompue (`ChunkedEncodingError`), puis correction JSON invalide après changement de modèle. Une interruption réseau conserve désormais d’abord le modèle et son schéma strict. Les corrections disposent d’une troisième tentative dans les mêmes budgets globaux de huit appels et 480 secondes. Le schéma est inclus dans la consigne du mode JSON compatible. Aucun secours RSS brut ni modèle payant n’est ajouté. Les tests reproduisent la succession interruption / réponse invalide / correction valide et vérifient la limite globale d’appels.
+
+L’édition du jour était déjà publiée par un rattrapage et présente dans le cache ESP. Le déclenchement direct GitHub depuis l’ESP a été accepté (HTTP 204). Pendant l’essai d’impression, l’imprimante a fermé la connexion après 137 619 octets confirmés sur 167 564, sans réponse de fin d’image. Le ticket avait commencé correctement puis ralenti et s’était arrêté, avec une batterie annoncée à 75 %. Cela ne prouve ni une panne de batterie ni une surchauffe.
+
+Le firmware limite maintenant le raster à 3 000 octets/s, sans accumuler de crédit pendant les attentes. Les ACK et gardes d’envoi incertain restent actifs. La densité et le débit sont conservés dans le diagnostic. Les tests couvrent l’espacement des paquets, l’absence de rafale après attente et le débordement du compteur millisecondes. Les 58 tests et la compilation ESP32 passent sur GitHub ; le firmware est installé. Le réglage local mémorisé a été abaissé de 4 à 3. La validation papier de ce réglage reste à confirmer après rétablissement de la connexion Bluetooth.

@@ -310,6 +310,8 @@ bool savePrintDiagnostic(const char *outcome, const char *kind = "journal") {
   StaticJsonDocument<1024> record;
   record["schema"] = 1;
   record["type"] = kind;
+  record["densite"] = printDensity;
+  record["debit_max_octets_s"] = JournalTransport::RASTER_BYTES_PER_SECOND;
   record["date"] = today();
   record["hash"] = cachedHash.substring(0, 16);
   record["resultat"] = outcome;

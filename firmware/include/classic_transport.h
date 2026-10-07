@@ -8,10 +8,11 @@
 #error "Bluetooth Classic SPP requires the original ESP32."
 #endif
 
-// One continuous raster, acknowledged SPP writes, no fixed pauses between packets.
+// One continuous raster, acknowledged SPP writes and bounded delivery rate.
 class JournalClassic {
   BluetoothSerial serial;
   JournalTransport::State state;
+  JournalTransport::PacketPacer pacer;
   portMUX_TYPE stateMux = portMUX_INITIALIZER_UNLOCKED;
   struct Lock {
     portMUX_TYPE *mux;
@@ -64,6 +65,13 @@ class JournalClassic {
     while (snapshot().congested && healthy() && millis() - start < 15000UL) delay(1);
     if (!healthy()) return fail(JournalTransport::Failure::disconnected);
     if (snapshot().congested) return fail(JournalTransport::Failure::congestion);
+    if (snapshot().d.phase == JournalTransport::Phase::raster) {
+      while (pacer.remaining(millis())) {
+        if (!healthy()) return fail(JournalTransport::Failure::disconnected);
+        delay(1);
+      }
+      pacer.sent(millis(), buffered);
+    }
     {
       Lock lock(stateMux);
       if (finalRaster) state.armCompletion();
@@ -184,6 +192,8 @@ public:
     size_t skip = input[0] == 0x10 ? 5 : 1;
     if (!job.seek(job.position() + skip)) return fail(Failure::file);
     phase(Phase::raster);
+    pacer = JournalTransport::PacketPacer();
+    Serial.printf("[SPP] Debit raster limite a %u octets/s\n", unsigned(RASTER_BYTES_PER_SECOND));
     // Merge stored bands into one GS v 0 image: band boundaries must not stop
     // the motor or re-trigger the print head across a line of text.
     size_t rasterStart = job.position();
