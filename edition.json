@@ -1,0 +1,40 @@
+{
+  "provider": "OpenRouter",
+  "articles": {
+    "france": [
+      {
+        "id": "3a7b45b77fe4d25f",
+        "title": "Loi violences sexuelles : équilibre préservé, coalition fissurée",
+        "summary": "Lors de la première lecture à l’Assemblée nationale, la plupart des dispositions contre les violences sexuelles ont été maintenues. Vendredi, la coalition transpartisane s’est fissurée sur certaines dispositions."
+      },
+      {
+        "id": "0e5828cf4ef99be2",
+        "title": "Meeting à Lyon : Attal mise sur la rivalité avec Mélenchon",
+        "summary": "Lors d’un meeting à Lyon samedi, Gabriel Attal prévoit de mettre en scène une rivalité avec Jean-Luc Mélenchon afin de relancer sa campagne présidentielle 2027, en s’éloignant de son duel avec Édouard Philippe et des crises de la rentrée."
+      }
+    ],
+    "world": [
+      {
+        "id": "d9daa8664f88c46b",
+        "title": "Panama : répliques après séisme, aéroport fermé",
+        "summary": "Vendredi, des centaines de répliques ont secoué le Panama après le séisme, entraînant la fermeture temporaire de l’aéroport international et la suspension des cours dans tout le pays."
+      },
+      {
+        "id": "b83dc790414d53a2",
+        "title": "Gaza : un an après cessez-le-feu, paix au point mort",
+        "summary": "Un an après le cessez-le-feu et l’accord de paix proposé par les États-Unis, Gaza demeure dans une situation désespérée, dépendant toujours de l’aide humanitaire."
+      }
+    ],
+    "tech": [
+      {
+        "id": "495a1066449ec162",
+        "title": "Ledger enquête sur un vol de 86 millions de dollars en crypto",
+        "summary": "Ledger enquête sur des vols de cryptomonnaies affectant des clients du revendeur CryptoBilis en Asie du Sud-Est, où plus de 86 millions de dollars auraient été détournés selon un enquêteur on-chain."
+      }
+    ]
+  },
+  "layout": {
+    "body_size": 31,
+    "used_height": 2290
+  }
+}

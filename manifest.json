@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "date": "2026-10-10",
+  "provider": "OpenRouter",
+  "file": "journal-2026-10-10-05dc53dd2b27cad6.bin",
+  "sha256": "05dc53dd2b27cad65ec86f9ef1db1a96930ae9b760d50a13d28efe0f0e7ba118",
+  "size": 180990,
+  "width": 626,
+  "height": 2290,
+  "generated_at": "2026-10-10T07:33:34.975690+00:00",
+  "demo": false
+}
