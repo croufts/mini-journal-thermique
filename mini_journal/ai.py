@@ -160,7 +160,8 @@ def object_schema(properties):
 
 def article_schema(identities):
     return object_schema({"id": {"type": "string", "enum": identities},
-                          "title": {"type": "string"}, "summary": {"type": "string"}})
+                          "title": {"type": "string", "minLength": 1, "maxLength": 65},
+                          "summary": {"type": "string", "minLength": 1, "maxLength": 240}})
 
 
 def sections_schema(candidates, selection=False):
@@ -226,6 +227,12 @@ class OpenRouter:
         attempts = 3 if stage == "correction" else 2
         for attempt in range(attempts):
             remaining = self.deadline - time.monotonic()
+            if stage == "relecture":
+                # Review is optional; leave two full requests and two calls for
+                # mandatory repairs instead of spending the entire budget here.
+                remaining -= 240
+                if remaining < 5 or len(self.diagnostics["calls"]) >= self.max_calls - 2:
+                    raise RuntimeError("Budget réservé aux corrections ; relecture interrompue")
             if len(self.diagnostics["calls"]) >= self.max_calls or remaining < 5:
                 raise RuntimeError("Budget de tentatives IA épuisé ; aucune publication")
             payload = {"model": self.model, "temperature": .2,
@@ -247,7 +254,9 @@ class OpenRouter:
             self.diagnostics["calls"].append(event)
             started = time.monotonic()
             try:
-                with request_deadline(min(120, remaining * .75)):
+                request_seconds = min(120, remaining * .75)
+                event["timeout_seconds"] = round(request_seconds, 2)
+                with request_deadline(request_seconds):
                     response = requests.post(URL, timeout=(min(10, remaining / 4), min(120, remaining * .75)),
                         headers={"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}, json=payload)
                 response.raise_for_status()
@@ -314,8 +323,14 @@ def select(candidates, config, diagnostics=None):
         try:
             reviewed = client.request("relecture", "Relis le brouillon avec les candidats comme seule référence factuelle. "
                 "Corrige les faits non attestés, répétitions, titres vagues, erreurs de français et longueurs. "
-                "Conserve exactement les identifiants et leur ordre. Rends l'édition complète corrigée.",
-                {"candidats": selected, "brouillon": articles}, sections_schema(selected), lambda v: preserve_selection(v, selected))
+                "Conserve exactement les identifiants et leur ordre. Rends l'édition complète corrigée. "
+                "Titres : maximum 65 caractères ; résumés : maximum 240 caractères ; "
+                "édition complète : maximum 220 mots. Corrige en priorité les erreurs signalées.",
+                {"candidats": selected, "brouillon": articles,
+                 "erreurs": [{"id": a["id"], "motifs": article_issues(a)}
+                             for s in SECTIONS for a in articles[s] if article_issues(a)],
+                 "mots": word_count(articles)},
+                sections_schema(selected), lambda v: preserve_selection(v, selected))
             for section in SECTIONS:
                 for index, article in enumerate(reviewed[section]):
                     if not article_issues(article) or article_issues(articles[section][index]):
