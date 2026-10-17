@@ -123,6 +123,15 @@ def test_review_failure_keeps_valid_ai_draft(setup):
     assert articles == VALID and post.call_count == 4 and d["review"] == "unavailable"
 
 
+def test_drafting_survives_timeout_then_invalid_identity(setup):
+    bad = deepcopy(VALID)
+    bad["tech"][0]["id"] = "unknown"
+    articles, _, _, d = setup([response(SELECTION), requests.Timeout(),
+                               response(bad), response(VALID), response(VALID)])
+    assert articles == VALID
+    assert [c["status"] for c in d["calls"] if c["stage"] == "redaction"] == ["error", "error", "success"]
+
+
 def test_review_changing_selection_is_rejected(setup):
     bad = deepcopy(VALID)
     bad["tech"][0]["id"] = "france"
