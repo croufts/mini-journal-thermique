@@ -68,6 +68,56 @@ def test_bad_review_does_not_destroy_valid_draft(setup):
     assert articles == VALID and post.call_count == 3 and d["review"] == "completed"
 
 
+def test_slow_review_leaves_time_for_required_repair(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-secret")
+    clock = [0.0]
+    monkeypatch.setattr(ai.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(ai.time, "sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    bad = deepcopy(VALID)
+    bad["tech"][0]["title"] = "Titre trop long " * 6
+    calls = []
+
+    def post(*args, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            clock[0] += 36
+            return response(SELECTION)
+        if len(calls) == 2:
+            clock[0] += 93
+            return response(bad)
+        if len(calls) in (3, 4):
+            clock[0] += kwargs["timeout"][1]
+            raise requests.exceptions.ChunkedEncodingError("deadline reached")
+        clock[0] += 110
+        return response({"articles": [VALID["tech"][0]]})
+
+    monkeypatch.setattr(ai.requests, "post", post)
+    diagnostics = {}
+    articles, _ = ai.select(CANDIDATES, CONFIG, diagnostics)
+    assert articles == VALID and clock[0] < 480
+    assert diagnostics["review"] == "unavailable"
+    assert diagnostics["calls"][-1]["stage"] == "correction"
+    assert diagnostics["calls"][-1]["timeout_seconds"] == 120
+
+
+def test_review_cannot_consume_reserved_repair_calls(setup):
+    bad = deepcopy(VALID)
+    bad["tech"][0]["summary"] = "Sans ponctuation"
+    articles, _, _, d = setup([
+        response(SELECTION), response(bad), response({"articles": [VALID["tech"][0]]})],
+        {**CONFIG, "ai": {"max_calls": 4}})
+    assert articles == VALID and d["review"] == "unavailable"
+    assert [c["stage"] for c in d["calls"]] == ["selection", "redaction", "correction"]
+
+
+def test_length_constraints_are_sent_to_model(setup):
+    _, _, post, _ = setup([response(SELECTION), response(VALID), response(VALID)])
+    schema = post.call_args_list[1].kwargs["json"]["response_format"]["json_schema"]["schema"]
+    props = schema["properties"]["tech"]["items"]["properties"]
+    assert props["title"]["maxLength"] == 65
+    assert props["summary"]["maxLength"] == 240
+
+
 def test_review_failure_keeps_valid_ai_draft(setup):
     articles, _, post, d = setup([response(SELECTION), response(VALID), requests.Timeout(), requests.Timeout()])
     assert articles == VALID and post.call_count == 4 and d["review"] == "unavailable"
