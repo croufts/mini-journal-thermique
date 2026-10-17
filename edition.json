@@ -1,0 +1,40 @@
+{
+  "provider": "OpenRouter",
+  "articles": {
+    "france": [
+      {
+        "id": "eeeafa2dc6edf0ca",
+        "title": "Entre Emmanuel Macron et la jeunesse, un divorce consommé",
+        "summary": "Porteur d’un message d’émancipation sociale lors de son arrivée au pouvoir, le chef de l’État a continuellement creusé le fossé avec la jeune génération, qui se mobilisera samedi 17 octobre."
+      },
+      {
+        "id": "b7a5471a89608d47",
+        "title": "Près de 8,6 tonnes de stupéfiants saisies par la marine nationale",
+        "summary": "Ces interceptions, réalisées en coordination avec plusieurs pays partenaires, dont la Colombie, ont permis de saisir près de 6,9 tonnes de cocaïne et 1,7 tonne de marijuana. Cinq personnes ont été placées en garde à vue en Martinique."
+      }
+    ],
+    "world": [
+      {
+        "id": "1dba77fc26961e6f",
+        "title": "Trump exempte la Russie de nouvelles sanctions",
+        "summary": "Dans un décret publié vendredi soir par la Maison Blanche, Donald Trump exempte l’application des sanctions, restrictions et droits de douane prévus dans le Graham Act."
+      },
+      {
+        "id": "eec41a8a3522e345",
+        "title": "ONU : aucun consensus sur la succession de Guterres",
+        "summary": "Les sept candidats déclarés ont tous obtenu au moins un vote négatif de la Chine, des États-Unis, de la France, du Royaume-Uni ou de la Russie. Mais la Costaricaine Rebeca Grynspan reste en tête du scrutin, qui n’est encore qu’indicatif."
+      }
+    ],
+    "tech": [
+      {
+        "id": "45cb8ce0c9ff4431",
+        "title": "Cyberattaque des frigos de supermarché : alerte industrielle",
+        "summary": "L’incident qui a touché plus de 700 magasins démontre la vulnérabilité de nombreux équipements, parfois anodins, connectés à Internet."
+      }
+    ]
+  },
+  "layout": {
+    "body_size": 31,
+    "used_height": 2138
+  }
+}
