@@ -224,7 +224,7 @@ class OpenRouter:
         compatible = False
         # A repair must survive a transport failure followed by a malformed
         # fallback response, within the same global call/time budgets.
-        attempts = 3 if stage == "correction" else 2
+        attempts = 3 if stage in ("redaction", "correction") else 2
         for attempt in range(attempts):
             remaining = self.deadline - time.monotonic()
             if stage == "relecture":
