@@ -55,6 +55,8 @@ Les workflows planifiés des dépôts publics peuvent être désactivés après 
 
 ### Génération du texte
 
+La relecture réserve 240 secondes et deux appels aux corrections obligatoires, dans le budget global existant. Si cette réserve est atteinte, elle cède la place aux corrections ; les contrôles finaux restent obligatoires. Les limites de 65/240 caractères sont aussi transmises dans le schéma JSON, et la relecture reçoit les défauts détectés localement. Les diagnostics indiquent le délai accordé à chaque requête.
+
 OpenRouter est le seul fournisseur. Le modèle initial est `nvidia/nemotron-3-super-120b-a12b:free`, validé sur une génération réelle. Le script accepte uniquement `openrouter/free` ou un identifiant se terminant par `:free`. Aucun modèle payant ni secours RSS brut n’est utilisé. Le routeur gratuit sert de reprise en cas d’échec.
 
 1. **Sélection** : l’IA choisit seulement les identifiants des nouvelles importantes, sans doublons entre rubriques. Elle vise deux informations FRANCE, deux MONDE et exactement une TECH ; une troisième nouvelle générale est possible si elle est essentielle.
