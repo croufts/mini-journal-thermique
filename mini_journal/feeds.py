@@ -13,6 +13,25 @@ LOG = logging.getLogger(__name__)
 SECTIONS = ("france", "world", "tech")
 
 
+def commentary_or_promotion(item):
+    """Filter identifiable columns, recaps and shopping before the prompt cap."""
+    title = item["title"].casefold()
+    url = item.get("url", "").casefold()
+    return (bool(re.search(r"/(?:idees|opinions?|tribunes?|bons-plans?|guide-dachat|pop-culture)/", url)) or
+            bool(re.search(r"\b(?:tribune|chronique|éditorial|editorial|opinion|bon plan|code promo|"
+                           r"récap|recap|on vous raconte la semaine|buying guide|deals|review|sponso)\b", title)) or
+            (item.get("section") == "tech" and bool(re.search(
+                r"(?:j[’']ai testé|on a testé|^test .+ :|sur quelle chaîne|tout ce qu[’']il faut savoir)", title))) or
+            bool(re.search(r"\b(?:meilleurs?|best)\s+(?:films?|séries?|series|smartphones?|laptops?|phones?)\b", title)))
+
+
+def event_priority(item):
+    """Keep concrete announcements visible even below many newer features."""
+    event = bool(re.search(r"\b(?:dévoil\w*|présent\w*|annonc\w*|lanc\w*|découvr\w*|"
+                          r"unveils?|reveals?|launch\w*|announc\w*|discover\w*)\b", item["title"], re.I))
+    return (event if item["section"] == "tech" else False, item["published"])
+
+
 def clean(value, limit=400):
     value = html.unescape(re.sub(r"<[^>]*>", " ", str(value)))
     return " ".join(value.split())[:limit]
@@ -35,6 +54,7 @@ def parse_feed(data, section, now, max_age_hours):
         result.append({
             "id": hashlib.sha256(identity.encode()).hexdigest()[:16],
             "section": section, "title": title,
+            "url": link,
             "description": clean(entry.get("summary", entry.get("description", "")), 260),
             "published": published.isoformat(),
         })
@@ -59,9 +79,28 @@ def fetch_one(feed, now, max_age_hours):
         return []
 
 
-def collect(config, now):
+def collect(config, now, history=None, diagnostics=None):
+    history = history or []
+    diagnostics = diagnostics if diagnostics is not None else {}
+    printed = {a["id"] for a in history}
     with ThreadPoolExecutor(max_workers=5) as pool:
-        groups = list(pool.map(lambda feed: fetch_one(feed, now, config["max_age_hours"]), config["feeds"]))
+        groups = list(pool.map(lambda feed: fetch_one(feed, now,
+            config.get("tech_max_age_hours", config["max_age_hours"]) if feed["section"] == "tech"
+            else config["max_age_hours"]), config["feeds"]))
+    diagnostics["feeds"] = [{"url": feed["url"], "section": feed["section"], "recent": len(items)}
+                            for feed, items in zip(config["feeds"], groups)]
+    rejected = []
+    filtered = []
+    for group in groups:
+        kept = []
+        for item in group:
+            reason = "already_published" if item["id"] in printed else "commentary_or_promotion" if commentary_or_promotion(item) else ""
+            if reason:
+                rejected.append({"id": item["id"], "title": item["title"], "reason": reason})
+            else:
+                kept.append(item)
+        filtered.append(sorted(kept, key=event_priority, reverse=True))
+    groups = filtered
     # Round-robin across publishers: a prolific feed must not fill the whole prompt.
     selected, seen_ids = [], set()
     for index in range(max((len(g) for g in groups), default=0)):
@@ -70,7 +109,8 @@ def collect(config, now):
                 continue
             item = group[index]
             peers = [s for s in selected if s["section"] == item["section"]]
-            if len(peers) >= config["max_candidates_per_section"] or item["id"] in seen_ids:
+            limit = config.get("max_tech_candidates", config["max_candidates_per_section"]) if item["section"] == "tech" else config["max_candidates_per_section"]
+            if len(peers) >= limit or item["id"] in seen_ids:
                 continue
             normalized = item["title"].casefold()
             if any(SequenceMatcher(None, normalized, p["title"].casefold()).ratio() > .88 for p in peers):
@@ -80,4 +120,5 @@ def collect(config, now):
     for section in SECTIONS:
         if not any(i["section"] == section for i in selected):
             raise ValueError(f"Aucune actualité récente pour {section}. Publication annulée.")
+    diagnostics.update(rejected=rejected, candidates=selected)
     return selected

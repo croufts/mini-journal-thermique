@@ -307,14 +307,24 @@ def word_count(articles):
     return sum(len((a["title"] + " " + a["summary"]).split()) for s in SECTIONS for a in articles[s])
 
 
-def select(candidates, config, diagnostics=None):
+def select(candidates, config, diagnostics=None, history=None):
     diagnostics = diagnostics if diagnostics is not None else {}
     try:
         client = OpenRouter(config, diagnostics)
         selected = client.request("selection", "Choisis les identifiants par rubrique, dans l'ordre d'importance. "
             "Vise deux nouvelles FRANCE et deux MONDE ; une troisième seulement si essentielle. "
             "Exactement une TECH. Évite les sujets redondants entre toutes les rubriques. "
-            "Réponds avec france, world, tech : des listes d'identifiants uniquement.", candidates,
+            "Compare aux sujets déjà publiés : un autre article, une nouvelle date de publication ou "
+            "une reformulation sur le même événement ne constituent PAS une nouvelle actualité. "
+            "Ne reprends un sujet que si l'extrait atteste un développement majeur nouveau. "
+            "Privilégie les événements et annonces concrètes récents : découvertes, lancements, "
+            "démonstrations technologiques, espace, robotique, énergie, automobile et informatique. "
+            "Une grande innovation annoncée récemment prime sur un commentaire, un bilan ou "
+            "une anecdote publiée ce matin. Ne confonds pas présentation, production et livraison. "
+            "Écarte les analyses d'opinion, rétrospectives, tutoriels, promotions et classements. "
+            "Les sources peuvent être en anglais : rédige toujours le journal en français. "
+            "Réponds avec france, world, tech : des listes d'identifiants uniquement.",
+            {"candidats": candidates, "sujets_deja_publies": history or []},
             sections_schema(candidates, selection=True), lambda v: validate_selection(v, candidates))
         articles = client.request("redaction", "Rédige les articles sélectionnés, avec les mêmes identifiants et le même ordre. "
             "Rends france, world, tech contenant des objets id, title, summary. "

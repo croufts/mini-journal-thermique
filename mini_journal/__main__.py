@@ -11,6 +11,7 @@ from .ai import select
 from .feeds import collect
 from .layout import render, font
 from .protocol import encode
+from . import history as editorial_history
 
 
 def main():
@@ -32,14 +33,22 @@ def main():
         articles = json.loads((Path(__file__).resolve().parents[1] / "examples" / "demo.json").read_text(encoding="utf-8"))
         provider = "Démonstration fictive"
     else:
-        candidates = collect(config, now)
-        logging.info("%d candidats disponibles", len(candidates))
-        if args.check_feeds:
-            return
         diagnostics = {}
+        if args.check_feeds:
+            collect(config, now, diagnostics=diagnostics)
+            return
         args.output.mkdir(parents=True, exist_ok=True)
         try:
-            articles, provider = select(candidates, config, diagnostics)
+            history = editorial_history.load(day)
+            diagnostics["history_articles"] = len(history)
+            candidates = collect(config, now, history=history, diagnostics=diagnostics)
+            logging.info("%d candidats disponibles ; %d articles en mémoire", len(candidates), len(history))
+            articles, provider = select(candidates, config, diagnostics, history=history)
+        except Exception as exc:
+            diagnostics.setdefault("status", "failed")
+            # Only the exception type: network messages can contain request URLs.
+            diagnostics.setdefault("reason", type(exc).__name__)
+            raise
         finally:
             # Available as an artifact even when generation fails. No raw API responses or keys.
             (args.output / "ai-diagnostics.json").write_text(
@@ -59,6 +68,9 @@ def main():
     image.save(args.output / "preview.png", dpi=(300, 300))
     (args.output / "edition.json").write_text(json.dumps({"provider": provider, "articles": fitted,
         "layout": layout}, ensure_ascii=False, indent=2), encoding="utf-8")
+    if not args.demo:
+        (args.output / "history.json").write_text(json.dumps(
+            editorial_history.updated(history, fitted, day), ensure_ascii=False, indent=2), encoding="utf-8")
     manifest = {"schema": 1, "date": day.isoformat(), "provider": provider, "file": filename, "sha256": digest,
                 "size": len(wire), "width": image.width, "height": image.height,
                 "generated_at": datetime.now(timezone.utc).isoformat(), "demo": args.demo}
