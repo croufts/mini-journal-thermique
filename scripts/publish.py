@@ -15,6 +15,8 @@ import tempfile
 from pathlib import Path
 
 from mini_journal.protocol import decode
+from mini_journal.history import recent
+from datetime import date as calendar_date
 
 
 def checked_artifacts(output):
@@ -28,6 +30,13 @@ def checked_artifacts(output):
     date, digest = manifest["date"], manifest["sha256"]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) or not re.fullmatch(r"[a-f0-9]{64}", digest):
         raise ValueError("Date ou empreinte invalide")
+    history = json.loads((output / "history.json").read_text(encoding="utf-8"))
+    memory = recent(history, calendar_date.fromisoformat(date))
+    expected_articles = {(section, a["id"], a["title"], a["summary"])
+                         for section, articles in edition["articles"].items() for a in articles}
+    recorded = {(a["section"], a["id"], a["title"], a["summary"]) for a in memory if a["date"] == date}
+    if not expected_articles or recorded != expected_articles:
+        raise ValueError("Historique incohérent avec l'édition publiée")
     expected = f"journal-{date}-{digest[:16]}.bin"
     if manifest["file"] != expected:
         raise ValueError("Nom de binaire invalide")
@@ -37,7 +46,7 @@ def checked_artifacts(output):
     image = decode(wire)
     if image.size != (manifest["width"], manifest["height"]):
         raise ValueError("Dimensions invalides")
-    return ["manifest.json", expected, "preview.png", "edition.json"]
+    return ["manifest.json", expected, "preview.png", "edition.json", "history.json"]
 
 
 def main():

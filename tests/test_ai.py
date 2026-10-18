@@ -304,7 +304,8 @@ def test_failed_cli_preserves_diagnostics_without_manifest(monkeypatch, tmp_path
     output.mkdir()
     (output / "manifest.json").write_text('{"old": true}')
     monkeypatch.setattr("sys.argv", ["mini_journal", "--config", str(config), "--output", str(output)])
-    monkeypatch.setattr(cli, "collect", lambda *args: CANDIDATES)
+    monkeypatch.setattr(cli, "collect", lambda *args, **kwargs: CANDIDATES)
+    monkeypatch.setattr(cli.editorial_history, "load", lambda day: [])
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
         cli.main()
