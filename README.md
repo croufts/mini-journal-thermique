@@ -51,9 +51,11 @@ Pour l’activer, créer un **fine-grained personal access token** GitHub limit�
 
 Les workflows planifiés des dépôts publics peuvent être désactivés après une période d’inactivité : vérifier Actions si la génération cesse.
 
-`config.json` contient les flux, le fuseau, l’âge maximal des nouvelles, les modèles et la mise en page. Par défaut : sept flux, nouvelles des dernières 36 heures, neuf candidats maximum par rubrique. Les sources sans date ou indisponibles sont ignorées ; chaque rubrique doit conserver au moins un candidat.
+`config.json` contient les flux, le fuseau, l’âge maximal des nouvelles, les modèles et la mise en page. Par défaut : onze flux, nouvelles des dernières 36 heures pour FRANCE/MONDE et 72 heures pour TECH ; neuf candidats maximum par rubrique générale et trente pour TECH. Les flux TECH couvrent Le Monde, Numerama (général et automobile), Frandroid, Ars Technica et TechCrunch. Les annonces concrètes sont examinées avant les dossiers plus récents, avec alternance entre sources. Les chroniques, opinions identifiables, récapitulatifs, promotions et guides sont filtrés avant cette limite. Les sources sans date ou indisponibles sont ignorées ; chaque rubrique doit conserver au moins un candidat.
 
 ### Génération du texte
+
+La sélection reçoit une mémoire des sept derniers jours, conservée dans `history.json` sur la branche `journal`. Les identifiants déjà publiés sont exclus avant sélection ; l’IA compare aussi les sujets pour éviter les répétitions entre articles différents et ne conserver un suivi que s’il apporte un développement majeur. La mémoire concerne le journal publié (le serveur ne sait pas si le papier est réellement sorti). Elle contient uniquement les articles conservés après mise en page, et elle est publiée avec le journal. Au premier lancement, la dernière édition existante initialise cette mémoire. Une lecture de mémoire en échec bloque la génération plutôt que d’effacer silencieusement l’historique. Aucun appel IA supplémentaire n’est ajouté. Les candidats et rejets sont enregistrés dans les diagnostics pour expliquer les choix.
 
 La relecture réserve 240 secondes et deux appels aux corrections obligatoires, dans le budget global existant. Si cette réserve est atteinte, elle cède la place aux corrections ; les contrôles finaux restent obligatoires. Les limites de 65/240 caractères sont aussi transmises dans le schéma JSON, et la relecture reçoit les défauts détectés localement. Les diagnostics indiquent le délai accordé à chaque requête.
 

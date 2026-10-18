@@ -43,7 +43,25 @@
     {
       "section": "tech",
       "url": "https://www.numerama.com/feed/"
+    },
+    {
+      "section": "tech",
+      "url": "https://www.numerama.com/vroom/feed/"
+    },
+    {
+      "section": "tech",
+      "url": "https://www.frandroid.com/feed"
+    },
+    {
+      "section": "tech",
+      "url": "https://feeds.arstechnica.com/arstechnica/index"
+    },
+    {
+      "section": "tech",
+      "url": "https://techcrunch.com/feed/"
     }
   ],
-  "greeting": "Bonjour."
+  "greeting": "Bonjour.",
+  "tech_max_age_hours": 72,
+  "max_tech_candidates": 30
 }
