@@ -130,7 +130,9 @@ def test_publication_rejects_demo_and_corruption(tmp_path):
                 "file": name, "size": len(wire), "width": 626, "height": 30}
     (tmp_path / name).write_bytes(wire)
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
-    (tmp_path / "edition.json").write_text(json.dumps({"provider": "OpenRouter"}))
+    (tmp_path / "edition.json").write_text(json.dumps({"provider": "OpenRouter", "articles": VALID}))
+    from mini_journal.history import updated
+    (tmp_path / "history.json").write_text(json.dumps(updated([], VALID, date(2026, 9, 29))))
     (tmp_path / "ai-diagnostics.json").write_text(json.dumps({"status": "validated"}))
     assert name in checked_artifacts(tmp_path)
     (tmp_path / name).write_bytes(wire[:-1])
