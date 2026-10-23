@@ -2,7 +2,7 @@
   "timezone": "Europe/Paris",
   "max_age_hours": 36,
   "max_candidates_per_section": 9,
-  "openrouter_model": "openrouter/free",
+  "openrouter_model": "xingchen-agi/xing4.0-29b-a4b:free",
   "ai": {
     "max_tokens": 16384,
     "retry_max_tokens": 32768,
