@@ -1,0 +1,40 @@
+{
+  "provider": "OpenRouter",
+  "articles": {
+    "france": [
+      {
+        "id": "54116013f0fdd4b0",
+        "title": "Propos polémiques de Macron sur l'attaque de Trappes",
+        "summary": "L'Elysée a précisé que Macron parlait du premier attentat raciste fondé sur la couleur de peau."
+      },
+      {
+        "id": "40f3d9a220ef5186",
+        "title": "Nouvelle manifestation du 24 octobre sous haute tension",
+        "summary": "Syndicats, gilets jaunes et lycéens défilent. Soixante-dix mille policiers sont mobilisés."
+      }
+    ],
+    "world": [
+      {
+        "id": "ba987dab9c618eca",
+        "title": "Jordanie : attaque meurtrière contre une église, sept morts",
+        "summary": "Sept morts dans une attaque contre une église en Jordanie. Le royaume craint une propagation des conflits régionaux."
+      },
+      {
+        "id": "47cfd30506554838",
+        "title": "Hongrie : célébration des 70 ans de la révolution de 1956",
+        "summary": "Péter Magyar a célébré le soulèvement de 1956 à Budapest pour marquer le retour de l'Europe libre."
+      }
+    ],
+    "tech": [
+      {
+        "id": "dfe5fb536ca517ba",
+        "title": "OpenAI cesse d'entraîner ses IA sur l'internet en direct",
+        "summary": "OpenAI arrête l'entraînement de ses IA sur l'internet en direct, invoquant des risques."
+      }
+    ]
+  },
+  "layout": {
+    "body_size": 31,
+    "used_height": 1702
+  }
+}

@@ -1,0 +1,250 @@
+{
+  "schema": 1,
+  "articles": [
+    {
+      "date": "2026-10-24",
+      "section": "france",
+      "id": "54116013f0fdd4b0",
+      "title": "Propos polémiques de Macron sur l'attaque de Trappes",
+      "summary": "L'Elysée a précisé que Macron parlait du premier attentat raciste fondé sur la couleur de peau."
+    },
+    {
+      "date": "2026-10-24",
+      "section": "france",
+      "id": "40f3d9a220ef5186",
+      "title": "Nouvelle manifestation du 24 octobre sous haute tension",
+      "summary": "Syndicats, gilets jaunes et lycéens défilent. Soixante-dix mille policiers sont mobilisés."
+    },
+    {
+      "date": "2026-10-24",
+      "section": "world",
+      "id": "ba987dab9c618eca",
+      "title": "Jordanie : attaque meurtrière contre une église, sept morts",
+      "summary": "Sept morts dans une attaque contre une église en Jordanie. Le royaume craint une propagation des conflits régionaux."
+    },
+    {
+      "date": "2026-10-24",
+      "section": "world",
+      "id": "47cfd30506554838",
+      "title": "Hongrie : célébration des 70 ans de la révolution de 1956",
+      "summary": "Péter Magyar a célébré le soulèvement de 1956 à Budapest pour marquer le retour de l'Europe libre."
+    },
+    {
+      "date": "2026-10-24",
+      "section": "tech",
+      "id": "dfe5fb536ca517ba",
+      "title": "OpenAI cesse d'entraîner ses IA sur l'internet en direct",
+      "summary": "OpenAI arrête l'entraînement de ses IA sur l'internet en direct, invoquant des risques."
+    },
+    {
+      "date": "2026-10-23",
+      "section": "france",
+      "id": "e005073d9655f9fa",
+      "title": "Un vaccin anticancer personnalisé montre un bénéfice inédit",
+      "summary": "Un vaccin anticancer personnalisé de Moderna et Merck a réduit de 42 % le risque de récidive ou de décès chez des patients atteints de mélanome à haut risque. C'est la première fois qu'une telle approche montre un bénéfice clinique."
+    },
+    {
+      "date": "2026-10-23",
+      "section": "france",
+      "id": "e4c4d82a874caf66",
+      "title": "Tempête Austen : 161 000 foyers privés d'électricité",
+      "summary": "La tempête Austen a privé 161 000 foyers d'électricité dans le nord-ouest de la France. Vingt-trois départements sont concernés par une vigilance orange vent."
+    },
+    {
+      "date": "2026-10-23",
+      "section": "world",
+      "id": "fcc3cf2a5cf741ee",
+      "title": "Nétanyahou annule des événements du Likoud après une attaque",
+      "summary": "Une attaque près de Hébron a fait cinq blessés, dont deux dans un état critique. Benyamin Nétanyahou a annulé des événements électoraux du Likoud en réaction."
+    },
+    {
+      "date": "2026-10-23",
+      "section": "world",
+      "id": "7b3d283f20f8f27f",
+      "title": "La génération Z allemande appelle à descendre dans la rue",
+      "summary": "La génération Z allemande appelle à manifester dans une vingtaine de villes fin octobre. Comme en France, les jeunes dénoncent le manque de moyens pour l'éducation et la hausse du coût de la vie."
+    },
+    {
+      "date": "2026-10-23",
+      "section": "tech",
+      "id": "d8c2497a7a86b63b",
+      "title": "Vaccin mRNA : Moderna et Merck affichent un bénéfice inédit",
+      "summary": "Les laboratoires Moderna et Merck ont annoncé que leur vaccin anticancer mRNA réduit de 42 % le risque de récidive ou de décès dans un essai sur le mélanome. Une première pour cette technologie."
+    },
+    {
+      "date": "2026-10-22",
+      "section": "france",
+      "id": "bac0c53f1cce3017",
+      "title": "Les syndicats jugent la réponse de Matignon insuffisante",
+      "summary": "Sept syndicats ont rencontré le premier ministre Sébastien Lecornu mercredi. La CGT appelle à généraliser la grève le 5 novembre pour obtenir des mesures sur le pouvoir d'achat dans le budget 2027."
+    },
+    {
+      "date": "2026-10-22",
+      "section": "france",
+      "id": "873d887cf8277011",
+      "title": "Quatre organisations quittent la concertation sur Parcoursup",
+      "summary": "Quatre organisations de lycéens et d'étudiants ont quitté la séance inaugurale mercredi. Le gouvernement doit faire ses premières propositions lundi 26 octobre."
+    },
+    {
+      "date": "2026-10-22",
+      "section": "world",
+      "id": "70f23629b97e51ee",
+      "title": "Attaques en Ukraine après des pourparlers russo-américains",
+      "summary": "Des attaques de Moscou en Ukraine font sept morts après la rencontre entre Vladimir Poutine et Steve Witkoff à Saint-Pétersbourg. Plusieurs blessés sont signalés à Kiev et Moscou."
+    },
+    {
+      "date": "2026-10-22",
+      "section": "world",
+      "id": "ad84031816b377f5",
+      "title": "Tensions entre Pékin et Taïwan autour des îles Pratas",
+      "summary": "Un bateau de pêche chinois est entré dans les eaux taïwanaises autour des îles Pratas le 11 octobre. La Chine tente d'y imposer son autorité par des démonstrations de force."
+    },
+    {
+      "date": "2026-10-22",
+      "section": "tech",
+      "id": "6bed19a8dcdd2f8e",
+      "title": "Tesla commencera à vendre ses Cybercab avant la fin de l'année",
+      "summary": "Tesla annonce qu'elle commencera à vendre son Cybercab aux clients d'ici la fin de l'année. Ce véhicule autonome sans volant fait l'objet d'une enquête des régulateurs fédéraux sur sa sécurité."
+    },
+    {
+      "date": "2026-10-21",
+      "section": "france",
+      "id": "dd72735ab02825ca",
+      "title": "Crash d'un Mirage 2000D près de Nancy, un corps retrouvé",
+      "summary": "L'armée a perdu le contact avec l'équipage mardi soir. Un corps a été retrouvé, le deuxième occupant est toujours recherché."
+    },
+    {
+      "date": "2026-10-21",
+      "section": "france",
+      "id": "4f943b1078f48ba7",
+      "title": "Comparutions immédiates après les pillages du 17 octobre",
+      "summary": "Des dizaines de personnes interpellées lors des pillages ont été jugées mardi à Paris, Lyon et Marseille. La plupart ont reçu des peines avec sursis, inférieures aux réquisitions du parquet."
+    },
+    {
+      "date": "2026-10-21",
+      "section": "world",
+      "id": "8841d3a12c84de4b",
+      "title": "Peskov affirme que la Russie veut la paix avant Poutine-Witkoff",
+      "summary": "L'émissaire américain est arrivé mercredi à Saint-Pétersbourg pour des pourparlers avec Vladimir Poutine. Dmitri Peskov affirme que la Russie veut la paix, pas une trêve."
+    },
+    {
+      "date": "2026-10-21",
+      "section": "world",
+      "id": "47feeff7ffbc48b5",
+      "title": "Lula et Flavio Bolsonaro déposent des recours mutuels au Brésil",
+      "summary": "Le président sortant accuse Meta d'ingérence au profit de l'extrême droite. Flavio Bolsonaro dénonce un abus de pouvoir via des publications massives sur WhatsApp."
+    },
+    {
+      "date": "2026-10-21",
+      "section": "tech",
+      "id": "390f802da20f485b",
+      "title": "Waymo annonce des taxis autonomes à Madrid",
+      "summary": "Waymo prépare un service de taxis sans chauffeur dans la région de Madrid, avec des premiers passagers prévus en 2027. C'est la deuxième ville de l'Union européenne après Munich."
+    },
+    {
+      "date": "2026-10-20",
+      "section": "france",
+      "id": "b7affcde639a8d82",
+      "title": "Violences du 17 octobre : assureurs contre l'État",
+      "summary": "Chaque épisode d’émeutes coûte désormais plus cher que le précédent, selon les assureurs. Face à la montée des saccages, un nombre croissant d’entre eux se retourne contre l’État pour obtenir réparation."
+    },
+    {
+      "date": "2026-10-20",
+      "section": "france",
+      "id": "3da2c675d90ad3c7",
+      "title": "Mobilisation étudiante : la fermeture des universités transforme未",
+      "summary": "Dans un entretien au « Monde », le président de l’université Versailles Saint-Quentin-en-Yvelines, Loïc Josseran, s’inquiète de l’absence de réponse du gouvernement aux préoccupations des étudiants."
+    },
+    {
+      "date": "2026-10-20",
+      "section": "world",
+      "id": "a63d084a11a0bd20",
+      "title": "Ukraine accuse Washington de retarder la livraison de missiles",
+      "summary": "Volodymyr Zelensky a déclaré devant des sénateurs américains que le Pentagone retarde la livraison de missiles déjà financés par les Européens. Cette accusation souligne les tensions sur le soutien militaire occidental à l'Ukraine."
+    },
+    {
+      "date": "2026-10-20",
+      "section": "world",
+      "id": "dada9b28f6631033",
+      "title": "L'Alberta vote largement contre un référendum d'indépendance",
+      "summary": "Plus de 75 % des voix en Alberta se sont opposées à l'organisation d'un référendum d'indépendance, une victoire pour le Premier ministre canadien Mark Carney."
+    },
+    {
+      "date": "2026-10-20",
+      "section": "tech",
+      "id": "f6e3170c2d58326a",
+      "title": "Japan lance une mission pour rapporter un morceau de Phobos",
+      "summary": "Le point culminant de la mission MMX interviendra en 2029, lorsque le vaisseau tentera jusqu’à deux atterrissages sur Phobos. Cette mission japonaise vise à rapporter sur Terre un échantillon de la lune martienne pour étudier son origine."
+    },
+    {
+      "date": "2026-10-19",
+      "section": "france",
+      "id": "06e9e29208700b6b",
+      "title": "Le modèle des plateformes de télémédecine remis en cause",
+      "summary": "Les interfaces spécialisées ont enregistré 7 millions de téléconsultations en 2025, assurées par des médecins y voyant un complément de revenu. Leur modèle économique apparaît fragile et leurs pratiques sont de plus en plus critiquées."
+    },
+    {
+      "date": "2026-10-19",
+      "section": "france",
+      "id": "591a2c559e985f8d",
+      "title": "Procès de l'assassinat de Brahim Chabane à Aix-en-Provence",
+      "summary": "Le procès du règlement de comptes lié au narcotrafic marseillais s'ouvre lundi à Aix-en-Provence. Amine Kessaci, frère de la victime Brahim Chabane, affronte les accusés, réclamant justice plutôt que vengeance."
+    },
+    {
+      "date": "2026-10-19",
+      "section": "world",
+      "id": "abc65ba75ce3c50f",
+      "title": "Nouvelle frappe russe sur Kiev, une femme tuée",
+      "summary": "Dans la nuit du 19 octobre 2026, des frappes russes ont visé la capitale ukrainienne, tuant une femme de 21 ans et blessant plusieurs personnes, selon le maire Vitali Klitschko."
+    },
+    {
+      "date": "2026-10-19",
+      "section": "world",
+      "id": "8c88289121a4e9c2",
+      "title": "Qatar pris au piège du détroit d’Ormuz, cherche une issue",
+      "summary": "La guerre au Moyen-Orient affecte durement le riche émirat, en bouleversant le cœur de son modèle économique, bâti autour du gaz naturel liquéfié."
+    },
+    {
+      "date": "2026-10-19",
+      "section": "tech",
+      "id": "ce8a7d0a8482b180",
+      "title": "Voyager 1 atteint une distance d'un jour-lumière",
+      "summary": "Le 18 novembre 2026 à 11h16 (heure de Paris), la sonde Voyager 1 se trouve à 25,9 milliards de kilomètres de la Terre, soit un jour-lumière, distance jamais atteinte par un objet fabriqué par l'homme."
+    },
+    {
+      "date": "2026-10-18",
+      "section": "france",
+      "id": "cce16c758381e201",
+      "title": "Mobilisation du 17 octobre : exécutif sous tension",
+      "summary": "Le Premier ministre Sébastien Lecornu, samedi soir, appelle à choisir entre la République et les casseurs, visant le candidat de La France insoumise Jean-Luc Mélenchon."
+    },
+    {
+      "date": "2026-10-18",
+      "section": "france",
+      "id": "4cd9ea7b74a10737",
+      "title": "Incendie de l'hôtel de ville de Limoges",
+      "summary": "L'hôtel de ville de Limoges a été incendié par des individus en fin de manifestation samedi, provoquant l'effondrement partiel du toit et la disparition des deux tiers de la façade."
+    },
+    {
+      "date": "2026-10-18",
+      "section": "world",
+      "id": "6b2643c3e35df877",
+      "title": "Analyse de l'impuissance occidentale au Moyen-Orient",
+      "summary": "L'historien Jean-Pierre Filiu estime que le décalage entre discours et actes au Moyen-Orient sape la crédibilité intérieure et internationale des dirigeants occidentaux."
+    },
+    {
+      "date": "2026-10-18",
+      "section": "world",
+      "id": "78f5a33eaa2a3cb3",
+      "title": "Incendies en Californie menacent Los Angeles",
+      "summary": "En Californie, des incendies ont détruit plusieurs habitations dans le comté d’Orange et se rapprochent du nord de Los Angeles, poussés par des vents violents tandis que les températures ont atteint 38 °C."
+    },
+    {
+      "date": "2026-10-18",
+      "section": "tech",
+      "id": "87e335c77fd4a65c",
+      "title": "Cyberattaque sur les congélateurs de supermarchés",
+      "summary": "Dans la nuit du 11 au 12 octobre, des hackers ont piraté plusieurs centaines de magasins, provoquant la destruction de grandes quantités de nourriture dans leurs congélateurs, montrant ainsi l’étroite imbrication d’Internet et du mondephys."
+    }
+  ]
+}
