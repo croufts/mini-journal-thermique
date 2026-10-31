@@ -1,0 +1,40 @@
+{
+  "provider": "OpenRouter",
+  "articles": {
+    "france": [
+      {
+        "id": "02995be5f43fdc82",
+        "title": "La coordination des « gilets jaunes » cherche à fédérer les colèr",
+        "summary": "Profitant des récentes mobilisations, la coordination nationale des « gilets jaunes » tente de structurer la contestation. Mais la place prise par des porte-parole ancrés à gauche interroge les figures historiques d'un mouvement né sans领袖."
+      },
+      {
+        "id": "6e4e266018cdfa58",
+        "title": "En Guyane, une sécheresse record complique l'accès à l'eau potab",
+        "summary": "Décuplée par l'intensité du phénomène El Niño et le changement climatique, la sécheresse exacerbe les difficultés chroniques d'accès à l'eau potable des Guyanais, notamment ceux vivant dans l'intérieur enclavé."
+      }
+    ],
+    "world": [
+      {
+        "id": "c03e783941d0e7f2",
+        "title": "Zelensky inquiet pour la livraison des missiles Patriot",
+        "summary": "La vente d'armement de plus de deux milliards de dollars a été approuvée par l'administration Trump, mais doit être entérinée par le Congrès. Pour Zelensky, la livraison n'interviendra que dans quelques semaines."
+      },
+      {
+        "id": "58f9f0a0646da7d7",
+        "title": "En Pologne, nuit de heurts devant le Tribunal constitutionnel",
+        "summary": "Né du refus du président polonais de recevoir le serment de juges élus par la Diète, le blocage du Tribunal a tourné à l'affrontement ouvert. À un an des législatives, aucun compromis ne se dessine."
+      }
+    ],
+    "tech": [
+      {
+        "id": "fb6fbf0543a34613",
+        "title": "Piratage de Binance : préjudice estimé à 6,3 milliards de dollars",
+        "summary": "La plateforme a publié des messages contradictoires sur X, assurant d'abord que les fonds étaient à l'abri avant de promettre de couvrir toutes les pertes. Le préjudice est estimé à 6,3 milliards de dollars."
+      }
+    ]
+  },
+  "layout": {
+    "body_size": 29,
+    "used_height": 2169
+  }
+}

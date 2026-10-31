@@ -1,0 +1,243 @@
+{
+  "schema": 1,
+  "articles": [
+    {
+      "date": "2026-10-31",
+      "section": "france",
+      "id": "02995be5f43fdc82",
+      "title": "La coordination des « gilets jaunes » cherche à fédérer les colèr",
+      "summary": "Profitant des récentes mobilisations, la coordination nationale des « gilets jaunes » tente de structurer la contestation. Mais la place prise par des porte-parole ancrés à gauche interroge les figures historiques d'un mouvement né sans领袖."
+    },
+    {
+      "date": "2026-10-31",
+      "section": "france",
+      "id": "6e4e266018cdfa58",
+      "title": "En Guyane, une sécheresse record complique l'accès à l'eau potab",
+      "summary": "Décuplée par l'intensité du phénomène El Niño et le changement climatique, la sécheresse exacerbe les difficultés chroniques d'accès à l'eau potable des Guyanais, notamment ceux vivant dans l'intérieur enclavé."
+    },
+    {
+      "date": "2026-10-31",
+      "section": "world",
+      "id": "c03e783941d0e7f2",
+      "title": "Zelensky inquiet pour la livraison des missiles Patriot",
+      "summary": "La vente d'armement de plus de deux milliards de dollars a été approuvée par l'administration Trump, mais doit être entérinée par le Congrès. Pour Zelensky, la livraison n'interviendra que dans quelques semaines."
+    },
+    {
+      "date": "2026-10-31",
+      "section": "world",
+      "id": "58f9f0a0646da7d7",
+      "title": "En Pologne, nuit de heurts devant le Tribunal constitutionnel",
+      "summary": "Né du refus du président polonais de recevoir le serment de juges élus par la Diète, le blocage du Tribunal a tourné à l'affrontement ouvert. À un an des législatives, aucun compromis ne se dessine."
+    },
+    {
+      "date": "2026-10-31",
+      "section": "tech",
+      "id": "fb6fbf0543a34613",
+      "title": "Piratage de Binance : préjudice estimé à 6,3 milliards de dollars",
+      "summary": "La plateforme a publié des messages contradictoires sur X, assurant d'abord que les fonds étaient à l'abri avant de promettre de couvrir toutes les pertes. Le préjudice est estimé à 6,3 milliards de dollars."
+    },
+    {
+      "date": "2026-10-30",
+      "section": "france",
+      "id": "15af4c0fe8e46944",
+      "title": "Une grève des dockers doit perturber les ports français vendredi",
+      "summary": "Tony Hautbois, secrétaire général de la CGT des dockers, annonce un arrêt à 95 % des ports français vendredi, sans chargement ni déchargement."
+    },
+    {
+      "date": "2026-10-30",
+      "section": "world",
+      "id": "66c3756960ceebe7",
+      "title": "La coalition de Netanyahou en tête sans majorité en Israël",
+      "summary": "Les résultats définitifs donnent 53 sièges à la coalition sortante de droite et d'extrême droite de Benyamin Nétanyahou, contre 48 à l'opposition de Gadi Eisenkot. Les listes arabes Raam et la Liste unifiée en remportent 19."
+    },
+    {
+      "date": "2026-10-30",
+      "section": "world",
+      "id": "8a965716b2b7eb81",
+      "title": "Le journal russe Novaïa Gazeta doit cesser son activité",
+      "summary": "La rédaction annonce le dernier numéro du trihebdomadaire pour le 9 novembre, dans une lettre à ses lecteurs."
+    },
+    {
+      "date": "2026-10-30",
+      "section": "tech",
+      "id": "9ef8f571fa2aa9e7",
+      "title": "Mistral Large 4 disponible sur Hugging Face",
+      "summary": "Mistral AI publie les poids de Mistral Large 4, modèle à 1 000 milliards de paramètres amélioré en code et en cybersécurité."
+    },
+    {
+      "date": "2026-10-29",
+      "section": "france",
+      "id": "b223c42f26bdb998",
+      "title": "Campagne d'influence anti-Qatar avant la présidentielle 2027",
+      "summary": "Deux chercheurs publient une étude sur une campagne publicitaire raciste, très bien financée et alignée sur les calendriers électoraux, révélant une possible ingérence étrangère."
+    },
+    {
+      "date": "2026-10-29",
+      "section": "france",
+      "id": "39299ac43a8d7b38",
+      "title": "Débat à l'Assemblée sur l'avenir de Parcoursup",
+      "summary": "Les députés s'opposent sur les solutions pour remplacer la plateforme d'ici 2028, lors d'un débat sans vote demandé par le Premier ministre."
+    },
+    {
+      "date": "2026-10-29",
+      "section": "world",
+      "id": "b7db020f7991638c",
+      "title": "La Corée du Nord a tiré une dizaine de missiles balistiques",
+      "summary": "Séoul rapporte ce nouvel essai alors que les tensions remontent entre les deux Corées ; le Japon appelle ses navires à la vigilance."
+    },
+    {
+      "date": "2026-10-29",
+      "section": "world",
+      "id": "16bc3800f712f1ad",
+      "title": "Washington interdit trois entreprises génomiques chinoises",
+      "summary": "Les États-Unis invoquent le travail forcé des Ouïghours pour justifier cette interdiction d'importation, dénoncée par Pékin comme du protectionnisme."
+    },
+    {
+      "date": "2026-10-29",
+      "section": "tech",
+      "id": "f13a0d701eddc5b1",
+      "title": "Apple dévoile un MacBook Pro avec écran tactile et OLED",
+      "summary": "Apple dévoile son premier ordinateur portable équipé d'un écran tactile, avec un nouveau design et un écran OLED."
+    },
+    {
+      "date": "2026-10-28",
+      "section": "france",
+      "id": "e2a1dc68e2af04bf",
+      "title": "Le projet de loi « casseurs-payeurs » adopté par le Sénat",
+      "summary": "Le texte a été adopté à 229 voix contre 105 par le Sénat. Très critiqué à gauche, il est désormais transmis à l'Assemblée nationale."
+    },
+    {
+      "date": "2026-10-28",
+      "section": "france",
+      "id": "757f2096146ae73f",
+      "title": "Manifestation contre la parole haineuse et raciste à Paris",
+      "summary": "Plusieurs milliers de personnes se sont rassemblées contre la banalisation de la parole décomplexée sur la sécurité et l'immigration. Cette manifestation intervient trois jours après l'attentat de Trappes."
+    },
+    {
+      "date": "2026-10-28",
+      "section": "world",
+      "id": "1b8d60a1d2dc0a36",
+      "title": "Résultats législatifs en Israël : Nétanyahou en tête provisoire",
+      "summary": "La coalition au pouvoir depuis 2022 semble en tête au lendemain du vote. Les résultats partiels sont susceptibles de varier, les définitifs étant attendus dans les prochains jours."
+    },
+    {
+      "date": "2026-10-28",
+      "section": "world",
+      "id": "24bd5eb4b2521e12",
+      "title": "Flavio Bolsonaro fuit le Brésil après sa défaite électorale",
+      "summary": "Visé par plusieurs enquêtes et ayant ses passeports annulés, Flavio Bolsonaro a fui le Brésil pour l'Équateur. Il tenterait de rejoindre les États-Unis."
+    },
+    {
+      "date": "2026-10-28",
+      "section": "tech",
+      "id": "5fb7508ef4658347",
+      "title": "DeepMind dévoile Genie 4, un modèle du monde plus réaliste",
+      "summary": "Le modèle Genie 4 de DeepMind promet une physique et des humains plus réalistes. Il sera bientôt disponible pour les développeurs et les abonnés Google AI Ultra."
+    },
+    {
+      "date": "2026-10-27",
+      "section": "france",
+      "id": "bc6bf95f5148895b",
+      "title": "Le Sénat rejette la réforme sur l'autonomie de la Corse",
+      "summary": "Le Sénat a rejeté la réforme constitutionnelle destinée à accorder des pouvoirs dérogatoires à la Corse. Le camp autonomiste a annoncé son retrait du processus de Beauvau."
+    },
+    {
+      "date": "2026-10-27",
+      "section": "france",
+      "id": "56e104959ba50216",
+      "title": "L'imprescriptibilité des crimes sexuels sur mineurs au Sénat",
+      "summary": "Le Sénat examine l'extension de l'imprescriptibilité aux crimes sexuels commis sur les mineurs. L'amendement avait été adopté à l'Assemblée nationale."
+    },
+    {
+      "date": "2026-10-27",
+      "section": "world",
+      "id": "ebba5039cda6e421",
+      "title": "La Jordanie frappe la Syrie après l'attaque contre une église",
+      "summary": "La Jordanie a frappé la Syrie après une attaque contre une église orthodoxe grecque qui a fait huit morts, dont trois enfants."
+    },
+    {
+      "date": "2026-10-27",
+      "section": "world",
+      "id": "d71ed16b882f7c7f",
+      "title": "Soudan : plus de vingt morts après une frappe de drone à Nyala",
+      "summary": "Une attaque de drone contre un marché de Nyala a fait plus de vingt morts. L'armée soudanaise mène régulièrement des attaques dans cette ville tenue par les Forces de soutien rapide."
+    },
+    {
+      "date": "2026-10-27",
+      "section": "tech",
+      "id": "a2025dd20ddca0c8",
+      "title": "OpenAI lance GPT-6.1 Terra, une IA qui contrôle l'ordinateur",
+      "summary": "OpenAI a lancé GPT-6.1 Terra, un modèle capable de contrôler un ordinateur. Il est facturé un dollar par million de tokens en entrée, soit deux fois moins cher que la version précédente."
+    },
+    {
+      "date": "2026-10-26",
+      "section": "france",
+      "id": "0533efc1e4fdaac4",
+      "title": "L'exécutif confronté à la perspective d'un long automne social",
+      "summary": "Le premier ministre reçoit les représentants des lycéens pour leur apporter des réponses concrètes. De nouveaux appels à mobilisation ont été lancés pour le 31 octobre et le 5 novembre."
+    },
+    {
+      "date": "2026-10-26",
+      "section": "france",
+      "id": "c442c87b059c9984",
+      "title": "À Trappes, la peur s'est installée après l'attentat raciste",
+      "summary": "L'attaque terroriste a fait un mort et cinq blessés. L'inquiétude persiste à Trappes, où certains habitants réduisent leurs déplacements par peur d'être ciblés."
+    },
+    {
+      "date": "2026-10-26",
+      "section": "world",
+      "id": "0bf90b46f0a08461",
+      "title": "Lula réélu président au Brésil à la surprise générale",
+      "summary": "Le candidat de gauche a remporté l'élection de manière inattendue face à Flavio Bolsonaro. Il était donné perdant par les sondages la veille encore."
+    },
+    {
+      "date": "2026-10-26",
+      "section": "world",
+      "id": "fa8d6b5e719653d5",
+      "title": "Ukraine : une attaque de drones ukrainienne fait deux morts en Ru",
+      "summary": "Une attaque de drones ukrainienne a fait deux morts et 17 blessés dans l'oblast de Voronej, en Russie. Le gouverneur de la région a confirmé ce bilan."
+    },
+    {
+      "date": "2026-10-26",
+      "section": "tech",
+      "id": "db0b8adde32d4424",
+      "title": "L'IA qui s'améliore elle-même, horizon contesté des laboratoires",
+      "summary": "L'auto-amélioration récursive des IA pourrait engendrer une explosion de leurs capacités et des risques, selon certains chercheurs. D'autres contestent cette perspective."
+    },
+    {
+      "date": "2026-10-25",
+      "section": "france",
+      "id": "a1296542abd0404a",
+      "title": "Marine Le Pen mise sur l'optimisme et la hauteur pour 2027",
+      "summary": "Lors d'un discours à Orléans, Marine Le Pen a voulu insuffler de l'optimisme et renforcer son image de favorite pour l'élection présidentielle de 2027. Elle affirme prendre de la hauteur face à un monde chaotique."
+    },
+    {
+      "date": "2026-10-25",
+      "section": "france",
+      "id": "4a41dc6c8ca1c39d",
+      "title": "Marcangeli demande que LFI paie les dégâts des manifestations",
+      "summary": "Laurent Marcangeli, patron des députés Horizons, demande que LFI finance les dégâts des manifestations du 17 octobre, qu'il juge solidaire des casseurs. Il évoque la loi casseurs-payeurs en examen au Sénat."
+    },
+    {
+      "date": "2026-10-25",
+      "section": "world",
+      "id": "da7870701dcc365f",
+      "title": "Vucic menacé de défaite électorale en Serbie",
+      "summary": "Malgré un usage massif des ressources administratives, Aleksandar Vucic apparaît en position délicate pour les législatives serbes du 25 octobre. Il brigue le poste de Premier ministre alors que la société civile craint sa défaite."
+    },
+    {
+      "date": "2026-10-25",
+      "section": "world",
+      "id": "42a23ed29601afa3",
+      "title": "Flavio Bolsonaro, l'extrême droite brésilienne en course",
+      "summary": "Fils aîné de l'ancien président Jair Bolsonaro, Flavio Bolsonaro a obtenu 47 % des voix au premier tour, devançant le sortant Lula. Il pourrait remporter l'élection présidentielle brésilienne."
+    },
+    {
+      "date": "2026-10-25",
+      "section": "tech",
+      "id": "94538d593663829e",
+      "title": "NASA met à jour ses plans d'atterrissage lunaire",
+      "summary": "La NASA a mis à jour ses plans d'atterrissage lunaire et résout enfin le problème Orion, grâce au mandat et aux ressources de ses responsables."
+    }
+  ]
+}
